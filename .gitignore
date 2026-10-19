@@ -1,0 +1,22 @@
+# =====================================================================
+# Arquivos que o git deve IGNORAR (não entram no histórico nem no GitHub)
+# =====================================================================
+
+# Planilhas e exportações de dados: contêm dados reais dos jogadores
+# (incluindo financeiro) e não devem ir para o repositório público.
+*.xlsx
+*.csv
+
+# Relatórios de conferência gerados pelos scripts de migração.
+relatorios/
+
+# Scripts com a carga de dados reais (gerados a partir da planilha).
+# Só a estrutura do banco (01_estrutura.sql) fica versionada.
+banco/02_dados*.sql
+
+# Arquivos de configuração com chaves e senhas (ex.: chave do Supabase).
+.env
+.env.*
+
+# Arquivos temporários criados automaticamente pelo Python.
+__pycache__/
