@@ -3,6 +3,11 @@
 ## Objetivo
 App web para controlar o racha semanal de futebol (quintas-feiras), substituindo um app antigo feito no Mocha (descontinuado). O usuário principal não é programador: explique cada passo em português simples e peça confirmação antes de ações importantes.
 
+## Situação atual
+- Em 19/10/2026, a estrutura do banco (`banco/01_estrutura.sql`) e o histórico da planilha (`banco/02_dados_historicos.sql`) já foram carregados no Supabase.
+- **Esses dois scripts NÃO devem ser rodados de novo** no Supabase: o banco já tem as tabelas e os dados, e rodar de novo daria erro ou duplicaria registros.
+- Mudanças futuras na estrutura devem ser feitas em novos scripts numerados (ex.: `banco/03_...sql`), com confirmação do usuário antes de executar.
+
 ## Tecnologia
 - Telas: HTML, CSS e JavaScript puro, pensadas primeiro para celular.
 - Banco de dados: Supabase (plano gratuito, região São Paulo).
