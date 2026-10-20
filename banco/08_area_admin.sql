@@ -13,7 +13,8 @@
 --   5. Cria a visão de saldos (cobrado − pago) de cada jogador.
 --
 -- Segurança:
---   * toda função confere public.eh_admin() logo no início;
+--   * as funções chamadas pelo app conferem public.eh_admin() logo no
+--     início; as funções de gatilho não (ver nota na seção 2);
 --   * as funções rodam com as permissões de QUEM CHAMA (security invoker),
 --     então o RLS das tabelas continua valendo; mesmo assim usam
 --     "set search_path = ''" (boa prática contra truques de nomes);
@@ -44,6 +45,17 @@ comment on column public.jogadores.tipo is
 -- =====================================================================
 -- 2. LANCES
 -- =====================================================================
+-- Por que os gatilhos não conferem eh_admin():
+--   As funções de GATILHO (validar_lance, somar_lance_nas_escalacoes,
+--   impedir_edicao_lance e proteger_time_com_lances) rodam sempre que uma
+--   tabela muda — inclusive quando o próprio administrador roda scripts de
+--   manutenção no SQL Editor do Supabase. Lá não há usuário logado
+--   (auth.uid() vazio), então eh_admin() daria falso e bloquearia, por
+--   exemplo, apagar um racha de teste com lances ou corrigir times.
+--   Quem impede não-admins de escrever nessas tabelas é o RLS (regras de
+--   acesso). Já as funções chamadas pelo APP (abrir_racha,
+--   definir_status_dia, definir_equipe e desfazer_ultimo_lance) continuam
+--   conferindo eh_admin() logo no início.
 -- Cada linha é um gol ou um gol contra, na ordem em que aconteceu.
 -- O banco garante que:
 --   * o autor (e a assistência, se houver) está ESCALADO na partida
@@ -107,9 +119,8 @@ declare
   v_time_autor  char(1);
   v_time_assist char(1);
 begin
-  if not public.eh_admin() then
-    raise exception 'Acesso negado: somente administradores.' using errcode = '42501';
-  end if;
+  -- (Função de GATILHO: não confere eh_admin() de propósito — veja a nota
+  --  "Por que os gatilhos não conferem eh_admin()" no topo da seção 2.)
 
   select equipe into v_time_autor from public.escalacoes
   where partida_id = new.partida_id and jogador_id = new.autor_id;
@@ -158,9 +169,8 @@ declare
   v_lance public.lances;
   v_sinal integer;
 begin
-  if not public.eh_admin() then
-    raise exception 'Acesso negado: somente administradores.' using errcode = '42501';
-  end if;
+  -- (Função de GATILHO: não confere eh_admin() de propósito — veja a nota
+  --  "Por que os gatilhos não conferem eh_admin()" no topo da seção 2.)
 
   if tg_op = 'INSERT' then
     v_lance := new; v_sinal := 1;
@@ -216,9 +226,7 @@ security invoker
 set search_path = ''
 as $$
 begin
-  if not public.eh_admin() then
-    raise exception 'Acesso negado: somente administradores.' using errcode = '42501';
-  end if;
+  -- (Função de gatilho: sem conferência de eh_admin(); vale para todos.)
   raise exception 'Lances não podem ser alterados: desfaça o lance e lance de novo.';
 end;
 $$;
@@ -240,9 +248,8 @@ security invoker
 set search_path = ''
 as $$
 begin
-  if not public.eh_admin() then
-    raise exception 'Acesso negado: somente administradores.' using errcode = '42501';
-  end if;
+  -- (Função de GATILHO: não confere eh_admin() de propósito — veja a nota
+  --  "Por que os gatilhos não conferem eh_admin()" no topo da seção 2.)
   if new.equipe is distinct from old.equipe and exists (
        select 1 from public.lances l
        where l.partida_id = old.partida_id
@@ -340,6 +347,14 @@ begin
        where l.partida_id = v_partida and (l.autor_id = p_jogador or l.assistencia_id = p_jogador)) then
     raise exception 'Este jogador tem lances nesta partida: desfaça os lances dele antes de removê-lo ou marcá-lo como falta.';
   end if;
+  -- Proteção do histórico: números já gravados (ex.: vindos de anotações
+  -- antigas, sem lances) também impedem tirar o jogador do dia.
+  if p_status in ('faltou', 'nenhum') and exists (
+       select 1 from public.escalacoes e
+       where e.partida_id = v_partida and e.jogador_id = p_jogador
+         and (e.gols > 0 or e.assistencias > 0 or e.gols_contra > 0)) then
+    raise exception 'Este jogador tem estatísticas registradas nesta partida; remova-as antes.';
+  end if;
 
   if p_status in ('presente', 'goleiro') then
     insert into public.presencas (racha_id, jogador_id, atuou_como_goleiro)
@@ -391,6 +406,12 @@ begin
     if exists (select 1 from public.lances l
                where l.partida_id = v_partida and (l.autor_id = p_jogador or l.assistencia_id = p_jogador)) then
       raise exception 'Este jogador tem lances nesta partida: desfaça os lances dele antes de tirá-lo do time.';
+    end if;
+    -- Proteção do histórico: não apaga escalação que tenha números.
+    if exists (select 1 from public.escalacoes e
+               where e.partida_id = v_partida and e.jogador_id = p_jogador
+                 and (e.gols > 0 or e.assistencias > 0 or e.gols_contra > 0)) then
+      raise exception 'Este jogador tem estatísticas registradas nesta partida; remova-as antes.';
     end if;
     delete from public.escalacoes where partida_id = v_partida and jogador_id = p_jogador;
     return null;
