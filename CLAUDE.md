@@ -12,7 +12,15 @@ App web para controlar o racha semanal de futebol (quintas-feiras), substituindo
   - `banco/dados/05_racha_2026-10-15.sql`: racha de 15/10/2026, 2 jogadores novos, cobranças e pagamentos (fora do git).
 - **Nenhum desses scripts (01 a 05) deve ser rodado de novo** no Supabase: o banco já tem as tabelas, os dados e as visões, e rodar de novo daria erro ou duplicaria registros.
 - Mudanças futuras devem ser feitas em novos scripts numerados (próximo: `06_...sql`), com confirmação do usuário antes de executar. Scripts com dados reais vão para `banco/dados/`.
-- A área pública (pasta `web/`) foi redesenhada em 6 etapas, todas concluídas e testadas localmente: identidade visual (paleta grená, sem verde), Início, Rankings, Rachas, Ficha do jogador e app instalável (PWA). O site ainda não foi publicado no GitHub Pages.
+- A área pública (pasta `web/`) foi redesenhada em 6 etapas: identidade visual (paleta grená, sem verde), Início, Rankings, Rachas, Ficha do jogador e app instalável (PWA).
+- **Site no ar desde 20/10/2026:** https://viniciusesousa.github.io/racha/ (marcado como `noindex, nofollow`, não aparece no Google; o link circula só no grupo).
+
+## Publicação (GitHub Pages)
+- Repositório público: https://github.com/viniciusesousa/racha (branch `main`).
+- **Cada push na branch `main` publica o site automaticamente** pelo workflow `.github/workflows/publicar-site.yml` (GitHub Actions), que envia só a pasta `web/`. O andamento aparece na aba "Actions" do repositório (leva 1 a 2 minutos).
+- O site fica numa subpasta (`/racha/`): todos os caminhos em `web/` devem ser relativos (sem `/` no início).
+- Antes de enviar ao GitHub, pedir confirmação ao usuário. Nunca enviar dados reais (`banco/dados/`, planilhas, relatórios) nem chaves secretas; só a chave `sb_publishable_` pode ficar no código.
+- Commits usam o e-mail privado ("noreply") do GitHub, já configurado só neste repositório (`git config user.email`), para o e-mail pessoal não ficar público. Não escrever e-mails em arquivos versionados.
 - **Ao publicar qualquer mudança na pasta `web/`, aumente `VERSAO` em `web/sw.js`** (v1 -> v2...). Assim o celular troca o cache e apaga o antigo. Arquivos novos da pasta `web/` que devam abrir sem internet entram na lista `ARQUIVOS_DO_APP` do `sw.js`. Os dados do Supabase nunca passam pelo cache.
 
 ## Identidade visual
