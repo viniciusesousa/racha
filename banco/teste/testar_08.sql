@@ -3,7 +3,8 @@
 -- =====================================================================
 -- Simula o administrador logado e confere, uma a uma, as regras do 08:
 -- lances, validações de time, soma/subtração nas escalações, bloqueios e
--- permissões. Ao final mostra "TODOS OS TESTES PASSARAM".
+-- permissões. Ao final mostra uma TABELA com 8 itens "OK" (só aparece se
+-- todos passarem; qualquer falha mostra um erro vermelho "FALHOU ...").
 --
 -- NADA FICA GRAVADO: tudo roda dentro de uma transação que termina em
 -- ROLLBACK (desfazer).
@@ -136,5 +137,19 @@ begin
   raise notice 'ok 8: sem login não acessa';
   raise notice '=== TODOS OS TESTES PASSARAM ===';
 end $$;
+
+-- Se chegou até aqui, NENHUM teste falhou (qualquer falha para o script
+-- com erro vermelho "FALHOU ..."). Esta tabela é o resultado na tela.
+reset role;
+select item, resultado from (values
+  (1, '1. Abrir racha (novo, data repetida e valor padrão)', 'OK'),
+  (2, '2. Presente / goleiro (não paga) / faltou (paga, sem presença)', 'OK'),
+  (3, '3. Times A e B (quem faltou não entra)', 'OK'),
+  (4, '4. Gol com assistência, gol contra e placar A 2 x 0 B', 'OK'),
+  (5, '5. Bloqueios: assistência de outro time, tirar do time quem tem gol, trocar de time quem tem lance, remover/faltar com lance, editar lance', 'OK'),
+  (6, '6. Desfazer último lance: números voltaram a zero', 'OK'),
+  (7, '7. Saldo inclui a falta de última hora', 'OK'),
+  (8, '8. Sem login: abrir_racha e saldos recusados', 'OK')
+) as t(ordem, item, resultado) order by ordem;
 
 rollback;  -- desfaz tudo: o banco de teste volta ao que era

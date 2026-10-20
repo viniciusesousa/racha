@@ -9,8 +9,8 @@
 -- PARTE 2 (sem login, como no SQL Editor): apaga as cobranças e o racha.
 --          Lances, escalações, presenças e a partida saem junto.
 --
--- Rode o arquivo inteiro de uma vez. No fim deve aparecer:
---   "LIMPEZA OK: racha de teste com lances apagado sem login".
+-- Rode o arquivo inteiro de uma vez. No fim aparece uma tabela com o
+-- resultado "OK" (qualquer falha mostra um erro vermelho).
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
@@ -68,3 +68,8 @@ begin
   raise notice 'LIMPEZA OK: racha de teste com lances apagado sem login';
 end $$;
 commit;
+
+-- Resultado na tela (só chega aqui se a limpeza funcionou).
+select 'Racha de teste com lances apagado pelo SQL Editor, sem login' as item,
+       case when not exists (select 1 from public.rachas where data_jogo = '2026-10-29')
+            then 'OK' else 'FALHOU: o racha ainda existe' end as resultado;
