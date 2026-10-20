@@ -52,15 +52,17 @@ const cacheEscalacoesJogador = new Map();  // jogador id -> escalações
 // Categorias do ranking
 // ---------------------------------------------------------------------
 // Cada categoria diz qual número ordenar, como mostrar e quem entra.
+//   media: true = a categoria permite ver a "média por jogo".
 const CATEGORIAS = [
-  { id: "artilharia", nome: "Artilharia", campo: "gols", unidade: "gols" },
-  { id: "assistencias", nome: "Assistências", campo: "assistencias", unidade: "assist." },
+  { id: "artilharia", nome: "Artilharia", campo: "gols", unidade: "gols", media: true },
+  { id: "assistencias", nome: "Assistências", campo: "assistencias", unidade: "assist.", media: true },
   {
     id: "participacoes", nome: "Participações em gol", campo: "participacoes_em_gol", unidade: "G + A",
+    media: true,
     detalhe: (e) => `${e.gols} gols · ${e.assistencias} assist.`,
   },
   {
-    id: "vitorias", nome: "Vitórias", campo: "vitorias", unidade: "vitórias",
+    id: "vitorias", nome: "Vitórias", campo: "vitorias", unidade: "vitórias", media: true,
     detalhe: (e) => `${e.vitorias}V · ${e.empates}E · ${e.derrotas}D`,
   },
   {
@@ -68,20 +70,33 @@ const CATEGORIAS = [
     // Só quem tem o mínimo de partidas com times (inclui quem tem 0%).
     filtro: (e) => e.partidas_com_times >= MINIMO_APROVEITAMENTO && e.aproveitamento !== null,
     formato: (v) => `${formatarDecimal(v)}%`,
-    detalhe: (e) => `${e.partidas_com_times} jogos · ${e.vitorias}V ${e.empates}E ${e.derrotas}D`,
+    detalhe: (e) => `${e.vitorias}V · ${e.empates}E · ${e.derrotas}D`,
     nota: `Pontos ganhos ÷ pontos possíveis (vitória = 3, empate = 1). ` +
           `Só entra quem tem ${MINIMO_APROVEITAMENTO} ou mais partidas com times.`,
   },
-  { id: "presenca", nome: "Presença", campo: "presencas", unidade: "rachas" },
+  { id: "jogos", nome: "Jogos", campo: "presencas", unidade: "jogos" },
   {
     id: "sequencia", nome: "Sequência", campo: "melhor_sequencia", unidade: "melhor",
     fonte: "sequencias",
     // Desempate: quem tem a maior sequência atual fica na frente.
     desempate: "sequencia_atual",
-    detalhe: (s) => `Sequência atual: ${s.sequencia_atual} ${s.sequencia_atual === 1 ? "vitória" : "vitórias"}`,
+    detalhe: (s) => `Atual: ${s.sequencia_atual} ${s.sequencia_atual === 1 ? "vitória" : "vitórias"}`,
     nota: "Vitórias seguidas, só em partidas com times. Empate ou derrota quebram a sequência.",
   },
 ];
+
+// Períodos do filtro do ranking.
+const PERIODOS = [
+  { id: "geral", nome: "Geral" },
+  { id: "ano", nome: "Este ano" },
+  { id: "mes", nome: "Este mês" },
+];
+
+// Mínimo de jogos para entrar no ranking de média por jogo.
+const MINIMO_MEDIA = 5;
+
+const NOMES_MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho",
+  "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
 
 // =====================================================================
@@ -298,7 +313,7 @@ function carregarDadosPeriodo() {
   if (!buscaPeriodo) {
     buscaPeriodo = Promise.all([
       buscarTodas(() => banco.from("v_participacoes")
-        .select("partida_id, racha_id, data_jogo, tem_times, jogador_id, equipe, gols, assistencias, gols_contra, resultado")
+        .select("partida_id, racha_id, numero, data_jogo, tem_times, jogador_id, equipe, gols, assistencias, gols_contra, resultado")
         .order("partida_id").order("jogador_id")),
       buscarTodas(() => banco.from("presencas").select("racha_id, jogador_id")
         .order("racha_id").order("jogador_id")),
@@ -386,6 +401,27 @@ function estatisticasPeriodo(de, ate, comAjustes) {
       ? Math.round(1000 * (3 * j.vitorias_em_partidas + j.empates) / (3 * j.partidas_com_times)) / 10
       : null;
     delete j.rachas;
+  }
+  return porJogador;
+}
+
+// Sequências de vitórias dentro de um período (mesma regra da visão
+// v_sequencias, mas só com os jogos entre as duas datas):
+//   melhor_sequencia = maior série de vitórias seguidas no período;
+//   sequencia_atual  = vitórias seguidas nos últimos jogos do período.
+// Só contam partidas com times; empate ou derrota quebram a série.
+function sequenciasPeriodo(de, ate) {
+  const jogos = dadosPeriodo.participacoes
+    .filter((p) => p.resultado && p.data_jogo >= de && p.data_jogo <= ate)
+    .sort((a, b) => a.data_jogo.localeCompare(b.data_jogo) || a.numero - b.numero);
+  const porJogador = new Map();
+  for (const p of jogos) {
+    if (!porJogador.has(p.jogador_id)) {
+      porJogador.set(p.jogador_id, { jogador_id: p.jogador_id, sequencia_atual: 0, melhor_sequencia: 0 });
+    }
+    const j = porJogador.get(p.jogador_id);
+    j.sequencia_atual = p.resultado === "V" ? j.sequencia_atual + 1 : 0;
+    j.melhor_sequencia = Math.max(j.melhor_sequencia, j.sequencia_atual);
   }
   return porJogador;
 }
@@ -555,57 +591,163 @@ async function telaInicio() {
 // TELA: RANKINGS
 // =====================================================================
 
-function telaRankings(idCategoria) {
-  const categoria = CATEGORIAS.find((c) => c.id === idCategoria) ?? CATEGORIAS[0];
+// Números do período escolhido, no formato das visões.
+//   Geral    = visões do banco (com todos os ajustes);
+//   Este ano = participações do ano + ajustes com data no ano;
+//   Este mês = só participações do mês (sem ajustes).
+async function numerosDoPeriodo(periodo) {
+  if (periodo === "geral") {
+    return {
+      estatisticas: dados.estatisticas,
+      sequencias: dados.sequencias,
+      nota: "Todos os jogos, já com os ajustes manuais do histórico.",
+    };
+  }
+  await carregarDadosPeriodo();
+  const hoje = hojeISO();
+  const ano = Number(hoje.slice(0, 4));
+  const mes = Number(hoje.slice(5, 7));
+  if (periodo === "ano") {
+    const [de, ate] = intervaloAno(ano);
+    return {
+      estatisticas: estatisticasPeriodo(de, ate, true),
+      sequencias: sequenciasPeriodo(de, ate),
+      nota: `Jogos de ${ano}, com os ajustes manuais lançados no ano.`,
+    };
+  }
+  const [de, ate] = intervaloMes(ano, mes);
+  return {
+    estatisticas: estatisticasPeriodo(de, ate, false),
+    sequencias: sequenciasPeriodo(de, ate),
+    nota: `Só jogos de ${NOMES_MESES[mes - 1]} de ${ano}, sem os ajustes manuais.`,
+  };
+}
 
-  // Botões de categoria (rolam para o lado no celular).
+// Endereço de uma combinação de filtros: #rankings/<categoria>/<período>/<modo>.
+function linkRanking(categoria, periodo, modo) {
+  return `#rankings/${categoria}/${periodo}/${modo}`;
+}
+
+// Grupo de botões "um ou outro" (período, total/média).
+function segmentado(rotulo, opcoes, ativo) {
+  return `
+    <div class="segmentado" role="group" aria-label="${rotulo}">
+      ${opcoes.map((o) => `
+        <a class="segmento ${o.id === ativo ? "ativa" : ""}" href="${o.link}"
+           ${o.id === ativo ? 'aria-current="true"' : ""}>${esc(o.nome)}</a>`).join("")}
+    </div>`;
+}
+
+async function telaRankings(idCategoria, idPeriodo, idModo) {
+  const categoria = CATEGORIAS.find((c) => c.id === idCategoria) ?? CATEGORIAS[0];
+  const periodo = PERIODOS.find((p) => p.id === idPeriodo)?.id ?? "geral";
+  // Média só existe nas categorias que permitem.
+  const modo = categoria.media && idModo === "media" ? "media" : "total";
+
+  const numeros = await numerosDoPeriodo(periodo);
+
+  // Botões de categoria (rolam para o lado no celular), mantendo os filtros.
   const botoes = CATEGORIAS.map((c) => `
-    <a class="categoria ${c.id === categoria.id ? "ativa" : ""}" href="#rankings/${c.id}"
+    <a class="categoria ${c.id === categoria.id ? "ativa" : ""}" href="${linkRanking(c.id, periodo, modo)}"
        ${c.id === categoria.id ? 'aria-current="true"' : ""}>${esc(c.nome)}</a>`).join("");
 
-  // Monta a lista de quem entra no ranking.
-  const fonte = categoria.fonte === "sequencias" ? dados.sequencias : dados.estatisticas;
-  let linhas = [...fonte.values()].filter((item) =>
-    categoria.filtro ? categoria.filtro(item) : Number(item[categoria.campo]) > 0);
+  const filtros = `
+    <div class="filtros">
+      ${segmentado("Período", PERIODOS.map((p) => ({ ...p, link: linkRanking(categoria.id, p.id, modo) })), periodo)}
+      ${categoria.media ? segmentado("Total ou média", [
+        { id: "total", nome: "Total", link: linkRanking(categoria.id, periodo, "total") },
+        { id: "media", nome: "Média", link: linkRanking(categoria.id, periodo, "media") },
+      ], modo) : ""}
+    </div>`;
+
+  // Monta a lista: cada linha com o número usado para ordenar ("valor").
+  const fonte = categoria.fonte === "sequencias" ? numeros.sequencias : numeros.estatisticas;
+  let linhas = [...fonte.values()].map((item) => {
+    const total = Number(item[categoria.campo]);
+    if (modo === "media") {
+      // Média por jogo: total ÷ jogos, com 2 casas (só quem tem o mínimo de jogos).
+      const jogos = Number(item.presencas) || 0;
+      return { item, valor: jogos ? Math.round((total / jogos) * 100) / 100 : 0, jogos };
+    }
+    return { item, valor: total };
+  }).filter(({ item, valor, jogos }) => {
+    if (modo === "media") return jogos >= MINIMO_MEDIA && valor > 0;
+    return categoria.filtro ? categoria.filtro(item) : valor > 0;
+  });
 
   // Ordena: maior valor primeiro; empate pelo critério extra e depois pelo nome.
-  const nomeDe = (item) => dados.jogadores.get(item.jogador_id)?.nome ?? "";
+  const nomeDe = (l) => dados.jogadores.get(l.item.jogador_id)?.nome ?? "";
   linhas.sort((a, b) =>
-    Number(b[categoria.campo]) - Number(a[categoria.campo]) ||
-    (categoria.desempate ? b[categoria.desempate] - a[categoria.desempate] : 0) ||
+    b.valor - a.valor ||
+    (categoria.desempate ? b.item[categoria.desempate] - a.item[categoria.desempate] : 0) ||
     nomeDe(a).localeCompare(nomeDe(b), "pt-BR"));
 
   // Posição: quem empata no número principal divide a mesma posição (1, 1, 3...).
-  let posicao = 0;
-  const itens = linhas.map((item, i) => {
-    if (i === 0 || Number(item[categoria.campo]) !== Number(linhas[i - 1][categoria.campo])) {
-      posicao = i + 1;
-    }
-    const jogador = dados.jogadores.get(item.jogador_id);
-    const valor = categoria.formato ? categoria.formato(item[categoria.campo]) : item[categoria.campo];
-    const sub = categoria.detalhe ? categoria.detalhe(item)
-      : (jogador?.apelido ? `“${esc(jogador.apelido)}”` : "");
-    const podio = posicao <= 3 ? `podio podio-${posicao}` : "";
+  linhas.forEach((l, i) => {
+    l.posicao = i > 0 && l.valor === linhas[i - 1].valor ? linhas[i - 1].posicao : i + 1;
+  });
+
+  // Como mostrar o número e o texto de apoio de cada linha.
+  const textoValor = (l) => (modo === "media"
+    ? l.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : categoria.formato ? categoria.formato(l.valor) : String(l.valor));
+  const unidade = modo === "media" ? "por jogo" : (categoria.unidade === "%" ? "" : categoria.unidade);
+  const textoApoio = (l) => {
+    if (modo === "media") return `${l.item[categoria.campo]} em ${l.jogos} jogos`;
+    return categoria.detalhe ? categoria.detalhe(l.item) : "";
+  };
+
+  // --- Pódio: 1º no centro e mais alto, 2º à esquerda, 3º à direita ---
+  const podio = linhas.slice(0, 3).map((l, i) => {
+    const jogador = dados.jogadores.get(l.item.jogador_id);
     return `
-      <li class="${podio}">
-        <a class="linha" href="#jogador/${item.jogador_id}">
-          <span class="posicao">${posicao}º</span>
+      <a class="podio-item podio-lugar-${i + 1}" href="#jogador/${l.item.jogador_id}">
+        ${avatar(jogador, i === 0 ? "avatar-grande" : "avatar-medio")}
+        <span class="podio-nome">${esc(jogador?.nome)}</span>
+        ${jogador?.tipo === "convidado" ? '<span class="selo selo-convidado">convidado</span>' : ""}
+        <span class="podio-valor num">${esc(textoValor(l))}</span>
+        <span class="podio-unidade">${esc(unidade)}</span>
+        <span class="podio-base podio-base-${Math.min(l.posicao, 3)}"><b class="num">${l.posicao}º</b></span>
+      </a>`;
+  }).join("");
+
+  // --- Lista compacta a partir do 4º ---
+  const resto = linhas.slice(3).map((l) => {
+    const jogador = dados.jogadores.get(l.item.jogador_id);
+    const apoio = textoApoio(l);
+    return `
+      <li>
+        <a class="linha" href="#jogador/${l.item.jogador_id}">
+          <span class="posicao">${l.posicao}º</span>
+          ${avatar(jogador, "avatar-pequeno")}
           <span class="linha-principal">
             <span class="linha-nome">${esc(jogador?.nome)}${selosJogador(jogador)}</span>
-            ${sub ? `<span class="linha-sub">${sub}</span>` : ""}
+            ${apoio ? `<span class="linha-sub">${apoio}</span>` : ""}
           </span>
-          <span class="linha-valor">${esc(valor)}<small>${esc(categoria.unidade === "%" ? "" : categoria.unidade)}</small></span>
+          <span class="linha-valor">${esc(textoValor(l))}<small>${esc(unidade)}</small></span>
         </a>
       </li>`;
   }).join("");
+
+  // Notas discretas: regra do período, da categoria e da média.
+  const notas = [
+    numeros.nota,
+    categoria.nota,
+    modo === "media" ? `Média por jogo: só quem tem ${MINIMO_MEDIA} ou mais jogos.` : "",
+  ].filter(Boolean).map((n) => `<p class="nota">${esc(n)}</p>`).join("");
 
   return {
     titulo: "Rankings",
     html: `
       <nav class="categorias" aria-label="Categorias do ranking">${botoes}</nav>
-      ${categoria.nota ? `<p class="nota">${esc(categoria.nota)}</p>` : ""}
-      ${itens ? `<ol class="lista">${itens}</ol>` : `<p class="vazio">Ninguém nesta categoria ainda.</p>`}
-      <p class="legenda">Totais calculados a partir dos jogos, já com os ajustes manuais do histórico.</p>`,
+      ${filtros}
+      ${notas}
+      ${linhas.length ? `
+        <div class="podio-visual">${podio}</div>
+        ${resto ? `<ol class="lista compacta" start="4">${resto}</ol>` : ""}`
+        : `<p class="vazio">${modo === "media"
+            ? `Ninguém com ${MINIMO_MEDIA} ou mais jogos ${periodo === "geral" ? "ainda" : "neste período"}.`
+            : `Ninguém nesta categoria ${periodo === "geral" ? "ainda" : "neste período"}.`}</p>`}`,
   };
 }
 
@@ -759,7 +901,7 @@ function listaJogadoresHTML(termo) {
             <span class="linha-nome">${esc(j.nome)}${selosJogador(j)}</span>
             ${sub ? `<span class="linha-sub">${sub}</span>` : ""}
           </span>
-          <span class="linha-valor">${e?.partidas_jogadas ?? 0}<small>jogos</small></span>
+          <span class="linha-valor">${e?.presencas ?? 0}<small>jogos</small></span>
         </a>
       </li>`;
   }).join("")}</ul>`;
@@ -852,8 +994,7 @@ async function telaJogador(id) {
       <h2 class="secao-titulo">Números</h2>
       <div class="cartao">
         <div class="grade-numeros">
-          ${caixa(e.presencas, "Presenças")}
-          ${caixa(e.partidas_jogadas, "Partidas")}
+          ${caixa(e.presencas, "Jogos")}
           ${caixa(e.gols, "Gols")}
           ${caixa(e.assistencias, "Assistências")}
           ${caixa(e.participacoes_em_gol, "Part. em gol")}
@@ -909,7 +1050,7 @@ let ultimaRota = null;
 // Lê o endereço (#...) e desenha a tela correspondente.
 async function desenharTela() {
   const meuPedido = ++pedidoAtual;
-  const [rota, parametro] = (location.hash.replace("#", "") || "inicio").split("/");
+  const [rota, parametro, ...extras] = (location.hash.replace("#", "") || "inicio").split("/");
 
   // Marca a aba ativa (as telas de detalhe ficam com a aba "mãe" acesa).
   const abaAtiva = { racha: "rachas", jogador: "jogadores" }[rota] ?? rota;
@@ -932,7 +1073,13 @@ async function desenharTela() {
     else if (rota === "jogador") {
       conteudo.innerHTML = esqueleto();
       tela = await telaJogador(Number(parametro));
-    } else tela = telaRankings(parametro);
+    } else {
+      // Ranking: os filtros de período/média podem precisar de dados extras.
+      if (extras[0] && extras[0] !== "geral" && !dadosPeriodo.participacoes.length) {
+        conteudo.innerHTML = esqueleto({ chips: true });
+      }
+      tela = await telaRankings(parametro, extras[0], extras[1]);
+    }
 
     if (meuPedido !== pedidoAtual) return;  // já pediram outra tela
 
