@@ -40,11 +40,11 @@ App web para controlar o racha semanal de futebol (quintas-feiras), substituindo
 - A proteção do financeiro deve ser feita no banco (Row Level Security do Supabase), não só escondendo na tela.
 
 ## Módulos da Fase 1
-1. **Jogadores:** nome, apelido, posição, tipo (linha, goleiro ou convidado), ativo.
-2. **Racha do dia:** data do jogo (única por dia), presença, montagem manual dos times A e B, botão rápido "+ convidado", placar, gols, assistências e gol contra. Pode haver mais de uma partida por racha.
+1. **Jogadores:** nome, apelido, posição, tipo (**linha ou goleiro**), ativo. **Não existe mais a categoria "convidado": quem jogou uma vez é jogador** (cadastrado como linha/ativo). No admin, o botão "+ novo jogador" mostra nomes parecidos já cadastrados (para evitar duplicatas) antes de criar um novo.
+2. **Racha do dia:** data do jogo (única por dia), presença, montagem manual dos times A e B, botão rápido "+ novo jogador", placar, gols, assistências e gol contra. O banco aceita mais de uma partida por racha, mas a área do admin trabalha com uma partida por racha.
 3. **Financeiro (só admin):** valor fixo e configurável por racha, igual para todos (R$ 15 em 2026); quem atua como goleiro naquele dia não paga; **quem falta de última hora paga o racha (cobrança sem presença); quem avisa com antecedência não paga** — a área do admin deve ter a opção "faltou de última hora" na lista do dia; o controle financeiro começa em 02/07/2026 (antes disso, saldo zero); formas de pagamento Pix, dinheiro e cartão; dívida acumula por jogador e pode ser quitada total ou parcialmente; tela "quem está devendo".
 4. **Caixa (só admin):** entradas (pagamentos) e saídas lançadas manualmente (quadra, bola etc.), com saldo e extrato.
-5. **Rankings (público):** artilharia, assistências, vitórias, presença e sequências. Sempre calculados a partir dos lançamentos, nunca guardados como total fixo. Convidados aparecem nos rankings, identificados como convidados.
+5. **Rankings (público):** artilharia, assistências, vitórias, presença e sequências. Sempre calculados a partir dos lançamentos, nunca guardados como total fixo.
 6. **Histórico:** importado da planilha `BASE_RACHA_CONSOLIDADA_2026.xlsx`.
 
 ## Regras de dados
