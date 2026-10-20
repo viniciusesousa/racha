@@ -3,17 +3,22 @@ Migração da planilha do Mocha para o banco do App do Racha.
 
 O que este script faz:
   1. Lê a planilha BASE_RACHA_CONSOLIDADA_2026.xlsx (pasta principal do projeto).
-  2. Gera banco/02_dados_historicos.sql com todos os INSERTs do histórico,
-     prontos para colar no SQL Editor do Supabase (depois do 01_estrutura.sql).
+  2. Gera banco/dados/02_dados_historicos.sql com todos os INSERTs do
+     histórico, prontos para colar no SQL Editor do Supabase (depois do
+     01_estrutura.sql). A pasta banco/dados/ fica FORA do git (dados reais).
   3. Gera relatorios/conferencia_migracao.xlsx, um relatório para conferir
      os números ANTES de carregar qualquer coisa no banco.
 
 Este script NÃO se conecta ao Supabase: ele só cria arquivos.
 
+Correções que envolvem dados de jogadores (apelidos, gols contra vindos da
+auditoria) ficam em banco/dados/correcoes_migracao.json, também fora do git.
+
 Como rodar (na pasta principal do projeto):
     python scripts/migrar_planilha.py
 """
 
+import json
 import sys
 from datetime import date
 from pathlib import Path
@@ -22,6 +27,7 @@ import pandas as pd
 
 # Garante que acentos apareçam corretamente no terminal do Windows.
 sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")  # mensagens de erro também
 
 
 # =====================================================================
@@ -31,7 +37,8 @@ sys.stdout.reconfigure(encoding="utf-8")
 # Pastas e arquivos (calculados a partir da localização deste script).
 PASTA_PROJETO = Path(__file__).resolve().parent.parent
 ARQUIVO_PLANILHA = PASTA_PROJETO / "BASE_RACHA_CONSOLIDADA_2026.xlsx"
-ARQUIVO_SQL = PASTA_PROJETO / "banco" / "02_dados_historicos.sql"
+ARQUIVO_SQL = PASTA_PROJETO / "banco" / "dados" / "02_dados_historicos.sql"
+ARQUIVO_CORRECOES = PASTA_PROJETO / "banco" / "dados" / "correcoes_migracao.json"
 ARQUIVO_RELATORIO = PASTA_PROJETO / "relatorios" / "conferencia_migracao.xlsx"
 
 # Valor cobrado por racha no histórico (só informativo: não geramos cobranças).
@@ -49,15 +56,8 @@ DATAS_CORRIGIDAS = {
     9: date(2026, 3, 12),
 }
 
-# Apelidos a definir na importação (id do jogador: apelido).
-APELIDOS = {45: "Apelido Exemplo"}
-
 # Padronização de nomes de posição (como está na planilha: como fica no app).
 POSICOES_PADRONIZADAS = {"Meia": "Meio Campo"}
-
-# Gols contra registrados na aba "Auditoria Consolidação", que não estão
-# na aba "Partidas Recuperadas". Formato: (data do jogo, id do jogador): quantidade.
-GOLS_CONTRA_RECUPERADOS = {(date(2026, 8, 20), 6): 1}  # Jogador Exemplo
 
 # Textos usados nos registros.
 OBS_RECUPERADO = "Reconstruído de anotações; sem times e placar"
@@ -68,6 +68,34 @@ CAMPOS_AJUSTE = {
     "manual_goals": "gols",
     "manual_assists": "assistencias",
     "manual_wins": "vitorias",
+}
+
+
+# =====================================================================
+# CORREÇÕES COM DADOS DE JOGADORES (arquivo fora do git)
+# =====================================================================
+# O arquivo banco/dados/correcoes_migracao.json traz:
+#   "apelidos": { "id do jogador": "apelido" }
+#   "gols_contra_recuperados": [ { "data": "AAAA-MM-DD", "jogador_id": N,
+#                                  "quantidade": N, ... } ]
+#     (gols contra registrados na aba "Auditoria Consolidação" que não
+#      estão na aba "Partidas Recuperadas")
+
+if not ARQUIVO_CORRECOES.exists():
+    raise SystemExit(
+        f"ERRO: não encontrei {ARQUIVO_CORRECOES.relative_to(PASTA_PROJETO)}. "
+        "Esse arquivo (fora do git) guarda as correções da migração com dados "
+        "de jogadores. Sem ele o resultado sairia diferente do que foi carregado.")
+
+correcoes = json.loads(ARQUIVO_CORRECOES.read_text(encoding="utf-8"))
+
+# Apelidos a definir na importação (id do jogador: apelido).
+APELIDOS = {int(jid): apelido for jid, apelido in correcoes.get("apelidos", {}).items()}
+
+# Gols contra vindos da auditoria. Formato: (data do jogo, id do jogador): quantidade.
+GOLS_CONTRA_RECUPERADOS = {
+    (date.fromisoformat(gc["data"]), int(gc["jogador_id"])): int(gc["quantidade"])
+    for gc in correcoes.get("gols_contra_recuperados", [])
 }
 
 
