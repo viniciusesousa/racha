@@ -40,6 +40,7 @@ App web para controlar o racha semanal de futebol (quintas-feiras), substituindo
 6. **Histórico:** importado da planilha `BASE_RACHA_CONSOLIDADA_2026.xlsx`.
 
 ## Regras de dados
+- **Scripts com dados reais de jogadores ou financeiros ficam em `banco/dados/` e nunca entram no git** (o repositório será público). Só scripts de estrutura (tabelas, visões, regras) são versionados. O `.gitignore` já bloqueia `banco/dados/`, `banco/*_dados*.sql` e `banco/0[2-9]_racha_*.sql`.
 - Impedir duplicidade no banco: um racha por data; um jogador por partida.
 - Ajustes manuais viram registros com motivo, data e autor (auditáveis).
 - Rachas recuperados de anotações (agosto e setembro de 2026) não têm times nem placar e devem ser sinalizados assim.

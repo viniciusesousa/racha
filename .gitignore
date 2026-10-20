@@ -10,9 +10,15 @@
 # Relatórios de conferência gerados pelos scripts de migração.
 relatorios/
 
-# Scripts com a carga de dados reais (gerados a partir da planilha).
-# Só a estrutura do banco (01_estrutura.sql) fica versionada.
-banco/02_dados*.sql
+# Scripts com DADOS REAIS de jogadores ou financeiros nunca entram no git
+# (o repositório será público). Só scripts de estrutura ficam versionados.
+#   * banco/dados/            -> pasta onde ficam, daqui em diante, todos os
+#                                scripts com dados reais (rachas, pagamentos...)
+#   * banco/*_dados*.sql      -> ex.: 02_dados_historicos.sql (carga da planilha)
+#   * banco/0[2-9]_racha_*.sql -> lançamentos de rachas fora da pasta dados/
+banco/dados/
+banco/*_dados*.sql
+banco/0[2-9]_racha_*.sql
 
 # Arquivos de configuração com chaves e senhas (ex.: chave do Supabase).
 .env
