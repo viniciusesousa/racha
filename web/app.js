@@ -781,11 +781,13 @@ function telaRachas() {
   }
 
   const html = [...meses].map(([anoMes, rachas]) => {
-    // Um único aviso por mês que tenha rachas recuperados.
-    const temRecuperado = rachas.some((r) => r.origem === "recuperado");
-    const aviso = temRecuperado
-      ? `<p class="aviso aviso-mes">Os rachas marcados como <b>recuperado</b> foram reconstruídos de
-           anotações: têm gols e assistências, mas não têm times nem placar.</p>`
+    // Um único aviso por mês que tenha rachas recuperados SEM times.
+    // (Recuperados que têm times pelo print do grupo mostram o placar normal.)
+    const temRecuperadoSemTimes = rachas.some((r) => r.origem === "recuperado" && !r.tem_times);
+    const aviso = temRecuperadoSemTimes
+      ? `<p class="aviso aviso-mes">Os rachas <b>recuperado</b> sem placar foram reconstruídos das
+           anotações do grupo: têm a lista de presença (e às vezes gols e assistências), mas não
+           têm a divisão dos times.</p>`
       : "";
 
     const cards = rachas.map((r) => {
@@ -876,7 +878,8 @@ async function telaRacha(id) {
 
   const escalacoes = await carregarEscalacoesRacha(racha);
   const titulo = `Racha de ${dataBR(racha.data_jogo)}`;
-  const quando = `${diaSemana(racha.data_jogo)}, ${dataBR(racha.data_jogo)}`;
+  const seloRecuperado = racha.origem === "recuperado" ? '<span class="selo selo-origem">recuperado</span>' : "";
+  const quando = `${diaSemana(racha.data_jogo)}, ${dataBR(racha.data_jogo)} ${seloRecuperado}`;
 
   let html = "";
   for (const p of racha.partidas) {
@@ -884,20 +887,27 @@ async function telaRacha(id) {
     const rotulo = racha.partidas.length > 1 ? `<h2 class="secao-titulo">Partida ${p.numero}</h2>` : "";
 
     if (!racha.tem_times) {
-      // Racha sem times (ex.: recuperado): aviso e uma lista só.
+      // Racha sem times (ex.: recuperado): aviso e uma lista só, com TODOS os
+      // presentes — quem não teve gol nem assistência aparece com "–".
+      await carregarDadosPeriodo();
+      const comNumeros = new Set(desta.map((e) => e.jogador_id));
+      const soPresentes = dadosPeriodo.presencas
+        .filter((pr) => pr.racha_id === racha.id && !comNumeros.has(pr.jogador_id))
+        .map((pr) => ({ jogador_id: pr.jogador_id, gols: 0, assistencias: 0, gols_contra: 0 }));
+      const todos = ordenarEscalacao([...desta, ...soPresentes]);
+      const explicacao = desta.length
+        ? "Racha reconstruído das anotações do grupo: os gols e assistências foram recuperados, mas não se sabe quem jogou em cada time."
+        : "Racha reconstruído da lista de presença do grupo: não há times, placar nem estatísticas.";
       html += `
         ${rotulo}
         <div class="cartao placar-cabecalho">
-          <span class="placar-quando">${quando}
-            ${racha.origem === "recuperado" ? '<span class="selo selo-origem">recuperado</span>' : ""}</span>
+          <span class="placar-quando">${quando}</span>
           <p class="placar-sem">Sem times e sem placar</p>
         </div>
-        ${racha.origem === "recuperado"
-          ? `<p class="aviso aviso-mes">Racha reconstruído de anotações: os gols e assistências foram
-               recuperados, mas não se sabe quem jogou em cada time.</p>` : ""}
+        ${racha.origem === "recuperado" ? `<p class="aviso aviso-mes">${explicacao}</p>` : ""}
         <section class="coluna-time coluna-unica">
-          <h3 class="coluna-time-titulo"><span>Jogadores</span><b class="num">${desta.length}</b></h3>
-          <ul class="coluna-time-lista">${ordenarEscalacao(desta).map(linhaJogadorTime).join("")}</ul>
+          <h3 class="coluna-time-titulo"><span>Presentes</span><b class="num">${todos.length}</b></h3>
+          <ul class="coluna-time-lista">${todos.map(linhaJogadorTime).join("") || '<li class="vazio">Sem registro</li>'}</ul>
         </section>`;
       continue;
     }

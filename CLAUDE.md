@@ -11,7 +11,10 @@ App web para controlar o racha semanal de futebol (quintas-feiras), substituindo
   - `banco/04_fotos_e_participacoes.sql`: colunas de foto, bucket `fotos-jogadores` e visão `v_participacoes`;
   - `banco/dados/05_racha_2026-10-15.sql`: racha de 15/10/2026, 2 jogadores novos, cobranças e pagamentos (fora do git).
 - **Nenhum desses scripts (01 a 05) deve ser rodado de novo** no Supabase: o banco já tem as tabelas, os dados e as visões, e rodar de novo daria erro ou duplicaria registros.
-- Mudanças futuras devem ser feitas em novos scripts numerados (próximo: `06_...sql`), com confirmação do usuário antes de executar. Scripts com dados reais vão para `banco/dados/`.
+- Saneamento de jul–out/2026 (a partir das listas e anotações do WhatsApp), preparado em 20/10/2026 e **ainda não executado**:
+  - `banco/06_ajustes_estrutura.sql`: permite `situacao = 'sem_informacao'` em rachas e `forma = 'nao_informado'` em pagamentos (rodar primeiro);
+  - `banco/dados/07_saneamento_jul_out.sql` (fora do git): corrige/inclui os rachas de 02/07 a 08/10, cobranças e pagamentos. Gerado por `banco/dados/gerar_07_saneamento.py`; tem trava para rodar uma vez só e conferência que desfaz tudo se algum número não bater.
+- Mudanças futuras devem ser feitas em novos scripts numerados (próximo: `08_...sql`), com confirmação do usuário antes de executar. Scripts com dados reais vão para `banco/dados/`.
 - A área pública (pasta `web/`) foi redesenhada em 6 etapas: identidade visual (paleta grená, sem verde), Início, Rankings, Rachas, Ficha do jogador e app instalável (PWA).
 - **Site no ar desde 20/10/2026:** https://viniciusesousa.github.io/racha/ (marcado como `noindex, nofollow`, não aparece no Google; o link circula só no grupo).
 
@@ -38,7 +41,7 @@ App web para controlar o racha semanal de futebol (quintas-feiras), substituindo
 ## Módulos da Fase 1
 1. **Jogadores:** nome, apelido, posição, tipo (linha, goleiro ou convidado), ativo.
 2. **Racha do dia:** data do jogo (única por dia), presença, montagem manual dos times A e B, botão rápido "+ convidado", placar, gols, assistências e gol contra. Pode haver mais de uma partida por racha.
-3. **Financeiro (só admin):** valor fixo e configurável por racha, igual para todos; quem atua como goleiro naquele dia não paga; formas de pagamento Pix, dinheiro e cartão; dívida acumula por jogador e pode ser quitada total ou parcialmente; tela "quem está devendo".
+3. **Financeiro (só admin):** valor fixo e configurável por racha, igual para todos (R$ 15 em 2026); quem atua como goleiro naquele dia não paga; **quem desiste em cima da hora paga mesmo sem jogar** (fica com cobrança e sem presença); o controle financeiro começa em 02/07/2026 (antes disso, saldo zero); formas de pagamento Pix, dinheiro e cartão; dívida acumula por jogador e pode ser quitada total ou parcialmente; tela "quem está devendo".
 4. **Caixa (só admin):** entradas (pagamentos) e saídas lançadas manualmente (quadra, bola etc.), com saldo e extrato.
 5. **Rankings (público):** artilharia, assistências, vitórias, presença e sequências. Sempre calculados a partir dos lançamentos, nunca guardados como total fixo. Convidados aparecem nos rankings, identificados como convidados.
 6. **Histórico:** importado da planilha `BASE_RACHA_CONSOLIDADA_2026.xlsx`.
@@ -47,7 +50,8 @@ App web para controlar o racha semanal de futebol (quintas-feiras), substituindo
 - **Scripts com dados reais de jogadores ou financeiros ficam em `banco/dados/` e nunca entram no git** (o repositório será público). Só scripts de estrutura (tabelas, visões, regras) são versionados. O `.gitignore` já bloqueia `banco/dados/`, `banco/*_dados*.sql` e `banco/0[2-9]_racha_*.sql`.
 - Impedir duplicidade no banco: um racha por data; um jogador por partida.
 - Ajustes manuais viram registros com motivo, data e autor (auditáveis).
-- Rachas recuperados de anotações (agosto e setembro de 2026) não têm times nem placar e devem ser sinalizados assim.
+- Rachas recuperados de anotações têm `origem = 'recuperado'` e mostram o selo "recuperado". Os que têm print dos times no grupo ficam com `tem_times = true` e placar normal; só os sem times mostram o aviso "sem times e sem placar".
+- Datas sem nenhum registro ficam como racha com `situacao = 'sem_informacao'` (sem partida).
 
 ## Decisões sobre a migração da planilha
 - A partida 22 é duplicata da 21 (erro do Mocha): considerar só a 21.
