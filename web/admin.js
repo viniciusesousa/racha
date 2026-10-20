@@ -67,6 +67,62 @@ function valorCampo(n) {
   return Number.isInteger(v) ? String(v) : v.toFixed(2).replace(".", ",");
 }
 
+// ---------------------------------------------------------------------
+// Nomes parecidos (usado no "+ novo jogador" e no cadastro de jogadores)
+// ---------------------------------------------------------------------
+// Distância entre dois textos (quantas letras trocar para virar o outro).
+// Tira acentos e deixa minúsculo ("João" -> "joao"), para comparar nomes.
+function normalizar(t) {
+  return String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
+
+function distancia(a, b) {
+  const linha = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let anterior = linha[0]; linha[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const guardado = linha[j];
+      linha[j] = Math.min(linha[j] + 1, linha[j - 1] + 1, anterior + (a[i - 1] === b[j - 1] ? 0 : 1));
+      anterior = guardado;
+    }
+  }
+  return linha[b.length];
+}
+
+// Jogadores com nome parecido com o digitado (para evitar duplicatas).
+// Cada palavra digitada (com 3+ letras, ou número) é comparada com as
+// palavras do nome/apelido de cada jogador:
+//   igual = 3 pontos; começa igual = 2; até 2 letras diferentes = 1.
+// Aparecem primeiro os que combinam com MAIS palavras digitadas (de
+// preferência todas) e, entre eles, os de mais pontos. Assim "convidado
+// tste" acha "Convidado Teste" sem listar todo mundo que tem "Teste".
+function nomesParecidos(texto, jogadores) {
+  const palavrasAlvo = normalizar(texto).split(/\s+/).filter((p) => p.length >= 3 || /^\d+$/.test(p));
+  if (!palavrasAlvo.length) return [];
+  const pontuados = jogadores.map((j) => {
+    const palavras = normalizar(`${j.nome} ${j.apelido ?? ""}`).split(/\s+/).filter(Boolean);
+    let pontos = 0, combinadas = 0;
+    for (const pa of palavrasAlvo) {
+      let melhor = 0;
+      for (const p of palavras) {
+        if (p === pa) melhor = Math.max(melhor, 3);
+        else if (p.startsWith(pa) || (pa.length >= 3 && pa.startsWith(p) && p.length >= 3)) melhor = Math.max(melhor, 2);
+        else if (p.length >= 4 && pa.length >= 4 && distancia(p, pa) <= 2) melhor = Math.max(melhor, 1);
+      }
+      pontos += melhor;
+      if (melhor > 0) combinadas++;
+    }
+    return { j, pontos, combinadas };
+  }).filter((x) => x.combinadas > 0);
+  if (!pontuados.length) return [];
+  const maisCombinadas = Math.max(...pontuados.map((x) => x.combinadas));
+  return pontuados
+    .filter((x) => x.combinadas === maisCombinadas)
+    .sort((a, b) => b.pontos - a.pontos || a.j.nome.localeCompare(b.j.nome, "pt-BR"))
+    .slice(0, 6)
+    .map((x) => x.j);
+}
+
 // Protege contra textos com símbolos especiais.
 function esc(texto) {
   return String(texto ?? "").replace(/[&<>"']/g, (c) => ({
@@ -266,7 +322,7 @@ const SECOES = {
   racha:     { titulo: "Racha do dia",   etapa: "etapas 2 a 4", modulo: () => window.SecaoRacha },
   devedores: { titulo: "Devedores",      etapa: "etapa 5", modulo: () => window.SecaoDevedores },
   caixa:     { titulo: "Caixa",          etapa: "etapa 6", modulo: () => window.SecaoCaixa },
-  jogadores: { titulo: "Jogadores",      etapa: "etapa 7" },
+  jogadores: { titulo: "Jogadores",      etapa: "etapa 7", modulo: () => window.SecaoJogadores },
   config:    { titulo: "Configurações",  etapa: "etapa 8" },
 };
 
