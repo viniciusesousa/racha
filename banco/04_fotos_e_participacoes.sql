@@ -30,6 +30,14 @@ alter table public.jogadores
   add column foto_url              text,
   add column foto_consentimento_em timestamptz;
 
+-- Regra: não existe foto sem consentimento.
+-- Se foto_url estiver preenchida, foto_consentimento_em também precisa
+-- estar; caso contrário o banco recusa a gravação. (Consentimento sem
+-- foto é permitido: o jogador pode autorizar antes de a foto ser enviada.)
+alter table public.jogadores
+  add constraint jogadores_foto_exige_consentimento
+  check (foto_url is null or foto_consentimento_em is not null);
+
 comment on column public.jogadores.foto_url is
   'Endereço público da foto do jogador no Storage (opcional).';
 comment on column public.jogadores.foto_consentimento_em is
@@ -55,10 +63,15 @@ values (
 -- Regras de acesso aos arquivos (a tabela storage.objects é do Supabase
 -- e já vem com RLS ligado). Cada regra vale SÓ para este bucket.
 
--- Leitura pública: qualquer pessoa pode ver/listar as fotos.
-create policy "fotos-jogadores: leitura publica" on storage.objects
-  for select to anon, authenticated
-  using (bucket_id = 'fotos-jogadores');
+-- Leitura (consultar e LISTAR os arquivos): somente administradores.
+-- Isso NÃO impede a área pública de mostrar as fotos: como o bucket é
+-- público, cada foto abre normalmente pelo seu endereço direto (o que fica
+-- guardado em jogadores.foto_url), sem passar por esta regra.
+-- O que fica restrito aos administradores é a listagem dos arquivos do
+-- bucket — assim ninguém de fora consegue "varrer" todas as fotos.
+create policy "fotos-jogadores: leitura somente admin" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'fotos-jogadores' and public.eh_admin());
 
 -- Envio de foto nova: somente administradores.
 create policy "fotos-jogadores: envio somente admin" on storage.objects
