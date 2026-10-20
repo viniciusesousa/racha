@@ -50,6 +50,23 @@ function mensagem(id, texto, tipo = "erro") {
   el.hidden = !texto;
 }
 
+// Lê um valor em reais digitado: aceita "15", "89,90", "89.90" ou "1.234,56".
+function lerValor(texto) {
+  let t = String(texto ?? "").trim().replace(/\s|R\$/g, "");
+  if (t.includes(",")) t = t.replace(/\./g, "").replace(",", ".");  // vírgula = decimal
+  const n = Number(t);
+  return Number.isFinite(n) ? n : NaN;
+}
+
+// Mostra um valor num campo, com vírgula: 15 -> "15"; 89.9 -> "89,90".
+function valorCampo(n) {
+  // Texto já digitado pela pessoa (ex.: "12,5") volta como está.
+  if (typeof n === "string" && n.trim() !== "" && !Number.isFinite(Number(n))) return n;
+  const v = Number(n);
+  if (!Number.isFinite(v)) return "";
+  return Number.isInteger(v) ? String(v) : v.toFixed(2).replace(".", ",");
+}
+
 // Protege contra textos com símbolos especiais.
 function esc(texto) {
   return String(texto ?? "").replace(/[&<>"']/g, (c) => ({
@@ -248,7 +265,7 @@ async function gravar(acao, aoDarCerto) {
 const SECOES = {
   racha:     { titulo: "Racha do dia",   etapa: "etapas 2 a 4", modulo: () => window.SecaoRacha },
   devedores: { titulo: "Devedores",      etapa: "etapa 5", modulo: () => window.SecaoDevedores },
-  caixa:     { titulo: "Caixa",          etapa: "etapa 6" },
+  caixa:     { titulo: "Caixa",          etapa: "etapa 6", modulo: () => window.SecaoCaixa },
   jogadores: { titulo: "Jogadores",      etapa: "etapa 7" },
   config:    { titulo: "Configurações",  etapa: "etapa 8" },
 };

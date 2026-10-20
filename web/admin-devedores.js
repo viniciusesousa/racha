@@ -122,7 +122,7 @@ window.SecaoDevedores = (() => {
                     aria-pressed="${pg.forma === f}">${nome}</button>`).join("")}
         </div>
         <label class="campo"><span>Valor (R$) — dívida total: ${reais(d.saldo)}</span>
-          <input type="number" id="quitar-valor" min="0.01" step="0.5" inputmode="decimal" value="${pg.valor}"></label>
+          <input type="text" inputmode="decimal" autocomplete="off" id="quitar-valor" value="${valorCampo(pg.valor)}"></label>
         <label class="campo"><span>Data do pagamento</span>
           <input type="date" id="quitar-data" value="${pg.data}"></label>
         <div class="form-pagou-botoes">
@@ -175,7 +175,7 @@ window.SecaoDevedores = (() => {
 
   function confirmarPagamento() {
     const pg = estado.pagando;
-    const valor = Number(String(estado.el.querySelector("#quitar-valor")?.value ?? pg.valor).replace(",", "."));
+    const valor = lerValor(estado.el.querySelector("#quitar-valor")?.value ?? pg.valor);
     const data = estado.el.querySelector("#quitar-data")?.value || pg.data;
     if (!pg.forma) return mostrarFalha("Escolha a forma de pagamento: Pix, Dinheiro ou Cartão.");
     if (!(valor > 0)) return mostrarFalha("Informe um valor maior que zero.");

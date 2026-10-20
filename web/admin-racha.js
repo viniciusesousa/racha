@@ -219,7 +219,7 @@ window.SecaoRacha = (() => {
           <label class="campo"><span>Data do jogo</span>
             <input type="date" id="abrir-data" value="${hojeISO()}" required></label>
           <label class="campo"><span>Valor por jogador (R$)</span>
-            <input type="number" id="abrir-valor" min="0" step="0.5" value="${valor}" inputmode="decimal" required></label>
+            <input type="text" inputmode="decimal" autocomplete="off" id="abrir-valor" value="${valorCampo(valor)}" required></label>
           ${mensagemAviso ? `<p class="mensagem mensagem-aviso">${esc(mensagemAviso)}</p>` : ""}
           <button class="botao botao-largo" type="submit">Abrir racha</button>
         </form>
@@ -556,7 +556,7 @@ window.SecaoRacha = (() => {
                     aria-pressed="${pg.forma === f}">${nome}</button>`).join("")}
         </div>
         <label class="campo"><span>Valor (R$)</span>
-          <input type="number" id="pagou-valor" min="0.01" step="0.5" inputmode="decimal" value="${pg.valor}"></label>
+          <input type="text" inputmode="decimal" autocomplete="off" id="pagou-valor" value="${valorCampo(pg.valor)}"></label>
         <div class="form-pagou-botoes">
           <button type="button" class="link-botao" data-acao="cancelar-pagou">Cancelar</button>
           <button type="button" class="botao" data-acao="confirmar-pagou" ${pg.forma ? "" : "disabled"}>Confirmar pagamento</button>
@@ -581,7 +581,7 @@ window.SecaoRacha = (() => {
 
   function confirmarPagou() {
     const pg = estado.pagando;
-    const valor = Number(String(estado.el.querySelector("#pagou-valor")?.value ?? pg.valor).replace(",", "."));
+    const valor = lerValor(estado.el.querySelector("#pagou-valor")?.value ?? pg.valor);
     if (!pg.forma) return mostrarFalha("Escolha a forma de pagamento: Pix, Dinheiro ou Cartão.");
     if (!(valor > 0)) return mostrarFalha("Informe um valor maior que zero.");
     const registro = {
@@ -615,7 +615,7 @@ window.SecaoRacha = (() => {
   // ---------------------------------------------------------------
   async function abrirRacha() {
     const data = estado.el.querySelector("#abrir-data").value;
-    const valor = Number(estado.el.querySelector("#abrir-valor").value);
+    const valor = lerValor(estado.el.querySelector("#abrir-valor").value);
     if (!data) return mostrarFalha("Escolha a data do jogo.");
     if (!(valor >= 0)) return mostrarFalha("Informe um valor válido (pode ser 0).");
     await gravar(

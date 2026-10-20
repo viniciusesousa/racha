@@ -1405,3 +1405,27 @@ button.aba {
 .devedor-botoes .botao { min-height: 40px; padding: 8px 16px; }
 .mensagem-copiada { padding: 10px 12px; border-radius: 10px; background: var(--aviso-fundo); color: var(--aviso); font-size: 0.85rem; }
 .mensagem-copiada p { margin: 6px 0 0; color: var(--texto); font-weight: 500; }
+
+/* =====================================================================
+   ADMIN · CAIXA
+   ===================================================================== */
+.saldo-caixa { text-align: center; }
+.saldo-caixa span, .saldo-caixa small { display: block; color: var(--texto-suave); font-size: 0.8rem; font-weight: 600; }
+.saldo-caixa b { display: block; font-size: 2.6rem; font-weight: 800; line-height: 1.1; }
+.negativo { color: var(--derrota); }                 /* 6,6 : 1 no claro; 7,9 : 1 no escuro */
+.saldo-caixa + .botao-largo { margin-bottom: 16px; }
+.extrato-cabecalho { display: grid; gap: 10px; }
+.extrato-totais { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.extrato-totais div { padding: 8px 4px; border-radius: 10px; background: var(--fundo); text-align: center; }
+.extrato-totais span { display: block; color: var(--texto-suave); font-size: 0.72rem; font-weight: 600; }
+.extrato-totais b { display: block; font-size: 1.15rem; }
+.extrato-linha { display: flex; align-items: center; gap: 8px; padding: 10px 12px; font-size: 0.9rem; }
+.extrato-data { flex: none; color: var(--texto-suave); font-variant-numeric: tabular-nums; font-size: 0.8rem; }
+.extrato-texto { flex: 1; min-width: 0; }
+.extrato-valor { flex: none; font-family: var(--fonte-numero); font-size: 1.1rem; font-weight: 700; white-space: nowrap; }
+.extrato-valor.saida { color: var(--derrota); }
+.extrato-excluir {
+  flex: none; width: 30px; height: 30px;
+  border: 1px solid var(--borda); border-radius: 50%;
+  background: var(--cartao); color: var(--texto-suave); cursor: pointer;
+}
