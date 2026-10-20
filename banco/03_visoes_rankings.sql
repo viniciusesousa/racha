@@ -119,9 +119,24 @@ por_jogador as (
   group by jogador_id
 ),
 presencas_jogador as (
-  -- Quantos rachas o jogador esteve presente.
-  select jogador_id, count(*) as presencas
-  from public.presencas
+  -- Em quantos rachas DIFERENTES o jogador esteve presente.
+  -- Conta como presente quem:
+  --   (a) está na tabela presencas daquele racha, OU
+  --   (b) tem escalação em alguma partida daquele racha — se jogou
+  --       (fez gol, assistência, gol contra ou apenas entrou em campo),
+  --       é porque estava lá.
+  -- Isso recupera a presença nos rachas reconstruídos de anotações, que
+  -- só têm a lista de quem jogou. O "union" junta as duas listas e
+  -- descarta repetições, então quem aparece nas duas conta uma vez só.
+  select jogador_id, count(distinct racha_id) as presencas
+  from (
+    select pr.jogador_id, pr.racha_id
+    from public.presencas pr
+    union
+    select e.jogador_id, p.racha_id
+    from public.escalacoes e
+    join public.partidas p on p.id = e.partida_id
+  ) as presentes
   group by jogador_id
 ),
 ajustes_jogador as (
@@ -252,6 +267,16 @@ comment on view public.v_sequencias is
 -- Qualquer pessoa (com ou sem login) pode consultar as três visões.
 -- Como elas usam "security_invoker", o banco continua aplicando o RLS
 -- das tabelas por trás — e todas elas já são de leitura pública.
+
+-- Primeiro tira TODAS as permissões das visões, para começar do zero.
+-- É a mesma segunda camada de proteção usada nas tabelas (01_estrutura.sql):
+-- assim ninguém fica com alguma permissão a mais que o Supabase dê por padrão
+-- (por exemplo, tentar alterar dados através de uma visão).
+revoke all on public.v_placar_partidas        from anon, authenticated;
+revoke all on public.v_estatisticas_jogadores from anon, authenticated;
+revoke all on public.v_sequencias             from anon, authenticated;
+
+-- Depois devolve somente a permissão de LEITURA.
 grant select on public.v_placar_partidas        to anon, authenticated;
 grant select on public.v_estatisticas_jogadores to anon, authenticated;
 grant select on public.v_sequencias             to anon, authenticated;
