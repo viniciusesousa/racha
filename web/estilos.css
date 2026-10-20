@@ -4,12 +4,13 @@
    Pensado primeiro para celular: uma coluna só, letras grandes, áreas de
    toque confortáveis. Em telas maiores o conteúdo fica centralizado.
 
-   PALETA: tirada do escudo (web/img/escudo.png).
-     * Verde escuro e verde = cores principais (cabeçalho, abas, botões).
-     * Dourado = destaques (1º lugar, medalhas, recordes). NUNCA é usado
-       como cor de texto sobre fundo claro (contraste baixo); texto em cima
-       do dourado é sempre preto.
+   PALETA (sem nenhum tom de verde, a pedido do usuário):
+     * Grená e vinho = cores principais (cabeçalho, abas, botões).
+     * Dourado do escudo = destaques (1º lugar, medalhas, recordes e
+       vitórias). NUNCA é usado como cor de texto sobre fundo claro
+       (contraste baixo); texto em cima do dourado é sempre preto.
      * Prata e bronze neutros para o 2º e o 3º lugar.
+     * Cinzas neutros (sem puxar para o verde) em fundos, bordas e textos.
    Todos os pares de texto/fundo abaixo foram conferidos no padrão de
    contraste WCAG AA (mínimo 4,5 : 1).
 
@@ -18,28 +19,28 @@
    ===================================================================== */
 
 :root {
-  /* ---- Cores do escudo ---- */
-  --verde-escuro: #3a650f;
-  --verde: #528114;
+  /* ---- Cores da identidade ---- */
+  --grena: #6d1f2f;
+  --vinho: #8a2a3d;
   --dourado: #e1ab11;
   --preto: #0e120d;
   --creme: #f8f8e3;
 
   /* ---- Papéis de cada cor (modo claro) ---- */
-  --fundo: #f5f6f1;
+  --fundo: #f6f4f4;
   --cartao: #ffffff;
-  --borda: #dfe3d8;
-  --texto: #0e120d;              /* 17,4 : 1 sobre o fundo */
-  --texto-suave: #535b4d;        /* 6,5 : 1 sobre o fundo */
+  --borda: #e4dfe0;
+  --texto: #0e120d;              /* 17,3 : 1 sobre o fundo */
+  --texto-suave: #5c5658;        /* 6,6 : 1 sobre o fundo */
 
-  --cabecalho: var(--verde-escuro);
-  --sobre-cabecalho: #ffffff;    /* 6,9 : 1 */
-  --botao: var(--verde);
-  --sobre-botao: #ffffff;        /* 4,7 : 1 */
-  --ativo: var(--verde-escuro);  /* abas, chips e textos de destaque: 6,9 : 1 */
+  --cabecalho: var(--grena);
+  --sobre-cabecalho: #ffffff;    /* 11,1 : 1 */
+  --botao: var(--vinho);
+  --sobre-botao: #ffffff;        /* 8,5 : 1 */
+  --ativo: var(--grena);         /* abas, chips e textos de destaque: 11,1 : 1 */
   --sobre-ativo: #ffffff;
-  --verde-suave: #e8f1dc;        /* fundo de selos e toques */
-  --sobre-verde-suave: #2f520c;  /* 7,7 : 1 */
+  --principal-suave: #f6e7ea;    /* fundo rosado de selos e toques */
+  --sobre-principal-suave: var(--grena); /* 9,3 : 1 */
 
   /* ---- Medalhas (texto sempre preto por cima) ---- */
   --ouro: var(--dourado);        /* preto sobre ouro: 9,0 : 1 */
@@ -54,14 +55,16 @@
   --aviso-fundo: #fdf3d6;
 
   /* ---- Resultados (V, E, D) ---- */
-  --vitoria: var(--verde-escuro);
-  --empate: #5f6660;
-  --derrota: #b42318;
-  --sobre-resultado: #ffffff;    /* mínimo 5,9 : 1 */
+  --vitoria: var(--dourado);     /* vitória = dourado, com texto preto: 9,0 : 1 */
+  --sobre-vitoria: var(--preto);
+  --empate: #c9cdd2;             /* preto sobre cinza: 11,8 : 1 */
+  --sobre-empate: var(--preto);
+  --derrota: #b42318;            /* branco sobre vermelho: 6,6 : 1 */
+  --sobre-derrota: #ffffff;
 
   /* ---- Esqueleto de carregamento ---- */
-  --esqueleto: #e6e9e1;
-  --esqueleto-brilho: #f3f5ef;
+  --esqueleto: #ebe7e8;
+  --esqueleto-brilho: #f6f3f4;
 
   /* ---- Fontes ---- */
   --fonte-texto: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -77,32 +80,34 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --fundo: var(--preto);
-    --cartao: #171d14;
-    --borda: #2a3324;
-    --texto: var(--creme);         /* 17,6 : 1 */
-    --texto-suave: #b3b8a0;        /* 9,3 : 1 */
+    --cartao: #1c1719;
+    --borda: #352c2f;
+    --texto: var(--creme);         /* 16,5 : 1 sobre o cartão */
+    --texto-suave: #b8b2b4;        /* 8,5 : 1 sobre o cartão */
 
-    --cabecalho: #1f3309;
-    --sobre-cabecalho: var(--creme); /* 12,7 : 1 */
-    --botao: #6ea023;
-    --sobre-botao: var(--preto);   /* 6,0 : 1 */
-    --ativo: #8cc63f;              /* verde claro: 9,2 : 1 sobre o fundo */
+    --cabecalho: #3d1119;
+    --sobre-cabecalho: var(--creme); /* 15,1 : 1 */
+    --botao: #f0a3b1;
+    --sobre-botao: var(--preto);   /* 9,5 : 1 */
+    --ativo: #f0a3b1;              /* rosado claro: 9,5 : 1 sobre o fundo */
     --sobre-ativo: var(--preto);
-    --verde-suave: #22331a;
-    --sobre-verde-suave: #b5e07a;  /* 8,9 : 1 */
+    --principal-suave: #3a1a22;
+    --sobre-principal-suave: #f6c6cf; /* 10,3 : 1 */
 
     --convidado: #d8b4fe;
     --convidado-fundo: #2e1a47;
     --aviso: #fcd98a;
     --aviso-fundo: #352a0c;
 
-    --vitoria: #8cc63f;
-    --empate: #9ca39a;
-    --derrota: #f28b82;
-    --sobre-resultado: var(--preto); /* mínimo 7,3 : 1 */
+    --vitoria: var(--dourado);     /* preto sobre dourado: 9,0 : 1 */
+    --sobre-vitoria: var(--preto);
+    --empate: #a8a3a5;
+    --sobre-empate: var(--preto);
+    --derrota: #f28b82;            /* preto sobre vermelho claro: 7,9 : 1 */
+    --sobre-derrota: var(--preto);
 
-    --esqueleto: #1f271b;
-    --esqueleto-brilho: #2a3424;
+    --esqueleto: #241e20;
+    --esqueleto-brilho: #30282b;
   }
 }
 
@@ -373,9 +378,9 @@ a:focus-visible, button:focus-visible, input:focus-visible {
   text-decoration: none;
   transition: background 0.15s;
 }
-a.linha:active { background: var(--verde-suave); }
+a.linha:active { background: var(--principal-suave); }
 @media (hover: hover) {
-  a.linha:hover { background: var(--verde-suave); }
+  a.linha:hover { background: var(--principal-suave); }
 }
 
 .linha-principal { flex: 1; min-width: 0; }
@@ -446,7 +451,7 @@ a.linha:active { background: var(--verde-suave); }
   white-space: nowrap;
 }
 .selo-convidado { background: var(--convidado-fundo); color: var(--convidado); }
-.selo-goleiro { background: var(--verde-suave); color: var(--sobre-verde-suave); }
+.selo-goleiro { background: var(--principal-suave); color: var(--sobre-principal-suave); }
 .selo-origem { background: var(--fundo); color: var(--texto-suave); border: 1px solid var(--borda); }
 
 
@@ -571,13 +576,12 @@ a.linha:active { background: var(--verde-suave); }
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  color: var(--sobre-resultado);
   font-size: 0.8rem;
   font-weight: 800;
 }
-.res-V { background: var(--vitoria); }
-.res-E { background: var(--empate); }
-.res-D { background: var(--derrota); }
+.res-V { background: var(--vitoria); color: var(--sobre-vitoria); }
+.res-E { background: var(--empate); color: var(--sobre-empate); }
+.res-D { background: var(--derrota); color: var(--sobre-derrota); }
 .res-sem { background: var(--borda); color: var(--texto-suave); }
 
 
@@ -649,7 +653,7 @@ a.linha:active { background: var(--verde-suave); }
 .contagem { text-align: right; line-height: 1; }
 .contagem-numero { font-size: 2.6rem; font-weight: 800; color: var(--ativo); }
 .contagem-texto { margin-left: 2px; font-weight: 700; color: var(--texto-suave); }
-/* "Hoje!" em selo verde (texto claro sobre verde escuro: 6,9 : 1) */
+/* "Hoje!" em selo da cor principal (texto claro sobre grená: 11,1 : 1) */
 .contagem-hoje {
   display: inline-block;
   padding: 6px 14px;
@@ -663,7 +667,7 @@ a.linha:active { background: var(--verde-suave); }
 
 /* ---------- Último racha: placar estilo telão ----------
    O telão é sempre escuro (nos dois modos), como um placar de estádio.
-   Contrastes sobre o preto: creme 17,6; cinza 9,3; verde claro 9,2. */
+   Contrastes sobre o preto: creme 17,6; cinza 9,1; dourado 9,0. */
 .telao {
   display: block;
   margin-bottom: 16px;
@@ -671,7 +675,7 @@ a.linha:active { background: var(--verde-suave); }
   border: 2px solid var(--dourado);   /* moldura dourada (decorativa) */
   border-radius: var(--raio);
   background:
-    radial-gradient(circle at 50% 0%, rgba(110, 160, 35, 0.22), transparent 65%),
+    radial-gradient(circle at 50% 0%, rgba(138, 42, 61, 0.35), transparent 65%),
     var(--preto);
   color: var(--creme);
   text-decoration: none;
@@ -681,7 +685,7 @@ a.linha:active { background: var(--verde-suave); }
   display: flex;
   justify-content: space-between;
   gap: 8px;
-  color: #b3b8a0;
+  color: #b8b2b4;
   font-size: 0.8rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -696,7 +700,7 @@ a.linha:active { background: var(--verde-suave); }
 }
 .telao-rotulo {
   display: block;
-  color: #b3b8a0;
+  color: #b8b2b4;
   font-size: 0.8rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -708,8 +712,8 @@ a.linha:active { background: var(--verde-suave); }
   font-weight: 800;
   line-height: 1;
 }
-.telao-vence { color: #8cc63f; }
-.telao-x { color: #b3b8a0; font-size: 1.6rem; font-weight: 700; }
+.telao-vence { color: var(--dourado); }
+.telao-x { color: #b8b2b4; font-size: 1.6rem; font-weight: 700; }
 .telao-resultado {
   margin: 8px 0 0;
   text-align: center;

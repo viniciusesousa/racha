@@ -19,6 +19,13 @@ App web para controlar o racha semanal de futebol (quintas-feiras), substituindo
 - Todo código deve ter comentários em português.
 - Soluções simples e modulares; evitar dependências sem justificativa.
 
+## Identidade visual
+- Escudo em `web/img/escudo.png` (transparente, gerado por `scripts/gerar_imagens.py`; o original `escudo.png.jfif` fica intacto).
+- **Sem nenhum tom de verde** na interface (pedido do usuário), nem nos cinzas. Cores principais: grená `#6d1f2f` e vinho `#8a2a3d`; no modo escuro, rosado claro `#f0a3b1`.
+- Dourado `#e1ab11` para destaques (1º lugar, medalhas, recordes, vitória). Nunca como cor de texto sobre fundo claro; texto sobre dourado sempre preto `#0e120d`. 2º e 3º lugares em prata e bronze neutros.
+- Modo escuro automático: fundo `#0e120d`, textos creme `#f8f8e3`.
+- Fontes: Barlow Condensed (números) e Inter (textos). Todo texto deve passar no contraste WCAG AA.
+
 ## Perfis de acesso
 - **Jogador:** acessa pelo link, sem login. Vê rankings, histórico de rachas e fichas dos jogadores.
 - **Administrador:** login com e-mail e senha (poucas pessoas). Lança dados e é o único que vê financeiro e caixa.

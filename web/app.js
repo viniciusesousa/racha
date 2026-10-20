@@ -143,7 +143,7 @@ function iniciais(nome) {
 
 // Cores dos círculos de iniciais (todas com contraste AA para letra branca).
 // A cor é escolhida pelo id do jogador, então cada um mantém sempre a sua.
-const CORES_AVATAR = ["#3a650f", "#1f5f7a", "#5b4b8a", "#8a4b2a", "#6b2f5a", "#2f5d50", "#7a4f0e"];
+const CORES_AVATAR = ["#6d1f2f", "#1f5f7a", "#5b4b8a", "#8a4b2a", "#6b2f5a", "#44506b", "#7a4f0e"];
 
 // Foto do jogador (se houver) ou círculo colorido com as iniciais.
 function avatar(jogador, classe = "") {
@@ -614,7 +614,7 @@ function telaRankings(idCategoria) {
 // TELA: LISTA DE RACHAS
 // =====================================================================
 
-// Placar curto de uma partida, ex.: "A 13 x 7 B" (com o vencedor em verde).
+// Placar curto de uma partida, ex.: "A 13 x 7 B" (com o vencedor em destaque).
 function placarCurto(p) {
   const a = p.resultado === "A" ? "vencedor" : "";
   const b = p.resultado === "B" ? "vencedor" : "";
