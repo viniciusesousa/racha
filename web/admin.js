@@ -247,7 +247,7 @@ async function gravar(acao, aoDarCerto) {
 
 const SECOES = {
   racha:     { titulo: "Racha do dia",   etapa: "etapas 2 a 4", modulo: () => window.SecaoRacha },
-  devedores: { titulo: "Devedores",      etapa: "etapa 5" },
+  devedores: { titulo: "Devedores",      etapa: "etapa 5", modulo: () => window.SecaoDevedores },
   caixa:     { titulo: "Caixa",          etapa: "etapa 6" },
   jogadores: { titulo: "Jogadores",      etapa: "etapa 7" },
   config:    { titulo: "Configurações",  etapa: "etapa 8" },

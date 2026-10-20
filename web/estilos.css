@@ -1392,3 +1392,16 @@ button.aba {
 .formas { flex-wrap: wrap; }
 .formas .status { flex: 1; }
 .form-pagou-botoes { display: flex; justify-content: space-between; align-items: center; }
+
+/* =====================================================================
+   ADMIN · DEVEDORES
+   ===================================================================== */
+.resumo-devedores { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.resumo-devedores span { color: var(--texto-suave); font-weight: 600; }
+.resumo-devedores b { font-size: 1.8rem; }
+.abertos { font-size: 0.85rem; color: var(--texto-suave); }
+.abertos b { color: var(--texto); }
+.devedor-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.devedor-botoes .botao { min-height: 40px; padding: 8px 16px; }
+.mensagem-copiada { padding: 10px 12px; border-radius: 10px; background: var(--aviso-fundo); color: var(--aviso); font-size: 0.85rem; }
+.mensagem-copiada p { margin: 6px 0 0; color: var(--texto); font-weight: 500; }
