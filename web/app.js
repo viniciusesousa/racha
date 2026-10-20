@@ -2,6 +2,7 @@
 // App do Racha — área pública (sem login)
 // =====================================================================
 // Este arquivo busca os dados no Supabase e desenha as telas:
+//   * Início    (#inicio — tela inicial)
 //   * Rankings  (#rankings, #rankings/<categoria>)
 //   * Rachas    (#rachas, e o detalhe em #racha/<id>)
 //   * Jogadores (#jogadores, e a ficha em #jogador/<id>)
@@ -10,7 +11,8 @@
 // Assim o botão "voltar" do celular funciona normalmente.
 //
 // IMPORTANTE: a área pública só consulta tabelas e visões públicas
-// (jogadores, escalacoes e as visões de ranking). Nunca toca no financeiro.
+// (jogadores, escalacoes, presencas, ajustes e as visões de ranking e de
+// participações). Nunca toca no financeiro.
 // =====================================================================
 
 
@@ -131,6 +133,27 @@ function selosJogador(jogador) {
   return html;
 }
 
+// Iniciais do nome para o avatar: "Jogador Exemplo" -> "JE", "Exemplo" -> "EX".
+function iniciais(nome) {
+  const partes = String(nome ?? "").trim().split(/\s+/).filter(Boolean);
+  if (!partes.length) return "?";
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return (partes[0][0] + partes[partes.length - 1][0]).toUpperCase();
+}
+
+// Cores dos círculos de iniciais (todas com contraste AA para letra branca).
+// A cor é escolhida pelo id do jogador, então cada um mantém sempre a sua.
+const CORES_AVATAR = ["#3a650f", "#1f5f7a", "#5b4b8a", "#8a4b2a", "#6b2f5a", "#2f5d50", "#7a4f0e"];
+
+// Foto do jogador (se houver) ou círculo colorido com as iniciais.
+function avatar(jogador, classe = "") {
+  if (jogador?.foto_url) {
+    return `<img class="avatar ${classe}" src="${esc(jogador.foto_url)}" alt="" loading="lazy">`;
+  }
+  const cor = CORES_AVATAR[(jogador?.id ?? 0) % CORES_AVATAR.length];
+  return `<span class="avatar ${classe}" style="background:${cor}" aria-hidden="true">${esc(iniciais(jogador?.nome))}</span>`;
+}
+
 // Esqueleto de carregamento: linhas "fantasma" no formato da lista que vai
 // aparecer. Com chips = também desenha os botões de categoria do ranking.
 function esqueleto({ linhas = 6, chips = false } = {}) {
@@ -159,6 +182,25 @@ async function consultar(promessa) {
   return data;
 }
 
+// O Supabase entrega no máximo 1000 linhas por pedido. Para listas que vão
+// crescer com o tempo (participações, presenças...), pede "página por página"
+// até acabar. `montarConsulta` deve devolver a consulta já ordenada.
+async function buscarTodas(montarConsulta) {
+  const TAMANHO_PAGINA = 1000;
+  const todas = [];
+  for (let inicio = 0; ; inicio += TAMANHO_PAGINA) {
+    const pagina = await consultar(montarConsulta().range(inicio, inicio + TAMANHO_PAGINA - 1));
+    todas.push(...pagina);
+    if (pagina.length < TAMANHO_PAGINA) return todas;
+  }
+}
+
+// Data de hoje no celular de quem está vendo, no formato "2026-10-19".
+function hojeISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 
 // =====================================================================
 // CARREGAMENTO DOS DADOS
@@ -180,10 +222,10 @@ function carregarDadosBase() {
 async function buscarDadosBase() {
 
   const [jogadores, estatisticas, sequencias, partidas] = await Promise.all([
-    consultar(banco.from("jogadores").select("id, nome, apelido, posicao, tipo, ativo")),
+    consultar(banco.from("jogadores").select("id, nome, apelido, posicao, tipo, ativo, foto_url")),
     consultar(banco.from("v_estatisticas_jogadores").select("*")),
     consultar(banco.from("v_sequencias").select("jogador_id, sequencia_atual, melhor_sequencia")),
-    consultar(banco.from("v_placar_partidas").select("*")),
+    buscarTodas(() => banco.from("v_placar_partidas").select("*").order("partida_id")),
   ]);
 
   jogadores.forEach((j) => dados.jogadores.set(j.id, j));
@@ -232,6 +274,280 @@ async function carregarEscalacoesJogador(jogadorId) {
   );
   cacheEscalacoesJogador.set(jogadorId, lista);
   return lista;
+}
+
+
+// =====================================================================
+// NÚMEROS POR PERÍODO (este ano, este mês...)
+// =====================================================================
+// As visões de ranking dão os totais de SEMPRE. Para um período, o app
+// soma as participações (v_participacoes) daquele intervalo de datas.
+//
+// Regra "Este ano" (usada no ranking e nos destaques da aba Início, para
+// os números baterem): participações do ano + ajustes manuais cuja data
+// esteja no ano. Regra "Este mês": só participações, sem ajustes.
+//
+// "Jogos" segue a mesma regra das visões: conta os rachas diferentes em que
+// o jogador jogou OU está na lista de presença (+ ajustes de presença).
+
+const dadosPeriodo = { participacoes: [], presencas: [], ajustes: [] };
+let buscaPeriodo = null;
+
+// Busca (uma vez só) as listas necessárias para os cálculos por período.
+function carregarDadosPeriodo() {
+  if (!buscaPeriodo) {
+    buscaPeriodo = Promise.all([
+      buscarTodas(() => banco.from("v_participacoes")
+        .select("partida_id, racha_id, data_jogo, tem_times, jogador_id, equipe, gols, assistencias, gols_contra, resultado")
+        .order("partida_id").order("jogador_id")),
+      buscarTodas(() => banco.from("presencas").select("racha_id, jogador_id")
+        .order("racha_id").order("jogador_id")),
+      buscarTodas(() => banco.from("ajustes").select("id, jogador_id, tipo, quantidade, data")
+        .order("id")),
+    ]).then(([participacoes, presencas, ajustes]) => {
+      Object.assign(dadosPeriodo, { participacoes, presencas, ajustes });
+    }).catch((erro) => {
+      buscaPeriodo = null;  // permite tentar de novo depois de um erro
+      throw erro;
+    });
+  }
+  return buscaPeriodo;
+}
+
+// Primeiro e último dia de um ano ou de um mês ("2026-01-01" a "2026-12-31").
+function intervaloAno(ano) {
+  return [`${ano}-01-01`, `${ano}-12-31`];
+}
+function intervaloMes(ano, mes) {
+  const ultimoDia = new Date(ano, mes, 0).getDate();
+  const mm = String(mes).padStart(2, "0");
+  return [`${ano}-${mm}-01`, `${ano}-${mm}-${ultimoDia}`];
+}
+
+// Calcula os números de cada jogador entre duas datas (inclusive).
+// Devolve um Map com os mesmos nomes de campo de v_estatisticas_jogadores,
+// para as telas poderem usar um ou outro sem diferença.
+function estatisticasPeriodo(de, ate, comAjustes) {
+  const noPeriodo = (data) => data >= de && data <= ate;
+  const dataDoRacha = new Map(dados.rachas.map((r) => [r.id, r.data_jogo]));
+  const porJogador = new Map();
+  const doJogador = (id) => {
+    if (!porJogador.has(id)) {
+      porJogador.set(id, {
+        jogador_id: id, rachas: new Set(), aj_presencas: 0,
+        partidas_jogadas: 0, gols: 0, assistencias: 0, gols_contra: 0,
+        partidas_com_times: 0, vitorias: 0, empates: 0, derrotas: 0, vitorias_em_partidas: 0,
+      });
+    }
+    return porJogador.get(id);
+  };
+
+  // Participações nas partidas do período.
+  for (const p of dadosPeriodo.participacoes) {
+    if (!noPeriodo(p.data_jogo)) continue;
+    const j = doJogador(p.jogador_id);
+    j.rachas.add(p.racha_id);
+    j.partidas_jogadas += 1;
+    j.gols += p.gols;
+    j.assistencias += p.assistencias;
+    j.gols_contra += p.gols_contra;
+    if (p.resultado) {
+      j.partidas_com_times += 1;
+      if (p.resultado === "V") { j.vitorias += 1; j.vitorias_em_partidas += 1; }
+      if (p.resultado === "E") j.empates += 1;
+      if (p.resultado === "D") j.derrotas += 1;
+    }
+  }
+
+  // Presenças sem escalação (ex.: estava lá mas não entrou na lista do jogo).
+  for (const pr of dadosPeriodo.presencas) {
+    const data = dataDoRacha.get(pr.racha_id);
+    if (data && noPeriodo(data)) doJogador(pr.jogador_id).rachas.add(pr.racha_id);
+  }
+
+  // Ajustes manuais com data no período (só quando a regra pede).
+  if (comAjustes) {
+    for (const a of dadosPeriodo.ajustes) {
+      if (!noPeriodo(a.data)) continue;
+      const j = doJogador(a.jogador_id);
+      if (a.tipo === "gols") j.gols += a.quantidade;
+      if (a.tipo === "assistencias") j.assistencias += a.quantidade;
+      if (a.tipo === "vitorias") j.vitorias += a.quantidade;
+      if (a.tipo === "presencas") j.aj_presencas += a.quantidade;
+    }
+  }
+
+  // Campos finais, no mesmo formato da visão.
+  for (const j of porJogador.values()) {
+    j.presencas = j.rachas.size + j.aj_presencas;
+    j.participacoes_em_gol = j.gols + j.assistencias;
+    // Aproveitamento só com jogos de verdade (igual à visão).
+    j.aproveitamento = j.partidas_com_times > 0
+      ? Math.round(1000 * (3 * j.vitorias_em_partidas + j.empates) / (3 * j.partidas_com_times)) / 10
+      : null;
+    delete j.rachas;
+  }
+  return porJogador;
+}
+
+// Números da temporada (ano atual) — mesma regra do ranking "Este ano".
+function estatisticasTemporada() {
+  const ano = Number(hojeISO().slice(0, 4));
+  return { ano, numeros: estatisticasPeriodo(...intervaloAno(ano), true) };
+}
+
+
+// =====================================================================
+// TELA: INÍCIO
+// =====================================================================
+
+// Próxima quinta-feira a partir de hoje (data do celular).
+// Devolve a data ("2026-10-22") e quantos dias faltam (0 = hoje).
+function proximaQuinta() {
+  const hoje = new Date();
+  const dias = (4 - hoje.getDay() + 7) % 7;  // 4 = quinta-feira
+  const alvo = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + dias);
+  const iso = `${alvo.getFullYear()}-${String(alvo.getMonth() + 1).padStart(2, "0")}-${String(alvo.getDate()).padStart(2, "0")}`;
+  return { iso, dias };
+}
+
+// Quem tem o maior valor de um campo (pode haver empate).
+// Devolve { valor, ids } — ids em ordem alfabética do nome.
+function lideres(mapa, campo) {
+  let valor = 0;
+  for (const item of mapa.values()) valor = Math.max(valor, Number(item[campo]) || 0);
+  if (valor <= 0) return { valor: 0, ids: [] };
+  const ids = [...mapa.values()]
+    .filter((item) => Number(item[campo]) === valor)
+    .map((item) => item.jogador_id)
+    .sort((a, b) => (dados.jogadores.get(a)?.nome ?? "")
+      .localeCompare(dados.jogadores.get(b)?.nome ?? "", "pt-BR"));
+  return { valor, ids };
+}
+
+// Nomes de quem empatou: "Fulano", "Fulano e Beltrano", "Fulano e mais 2".
+function nomesEmpatados(ids) {
+  const nomes = ids.map((id) => esc(dados.jogadores.get(id)?.nome ?? ""));
+  if (nomes.length <= 2) return nomes.join(" e ");
+  return `${nomes[0]} e mais ${nomes.length - 1}`;
+}
+
+// Card de destaque da temporada (artilheiro, garçom, sequência).
+function cardDestaque(rotulo, lider, unidade) {
+  if (!lider.ids.length) {
+    return `
+      <div class="destaque">
+        <span class="destaque-rotulo">${rotulo}</span>
+        <span class="avatar avatar-medio avatar-vazio" aria-hidden="true">–</span>
+        <span class="destaque-nome">Ninguém ainda</span>
+      </div>`;
+  }
+  const primeiro = dados.jogadores.get(lider.ids[0]);
+  const empate = lider.ids.length > 1 ? `<span class="destaque-empate">${lider.ids.length} empatados</span>` : "";
+  return `
+    <a class="destaque" href="#jogador/${primeiro?.id}">
+      <span class="destaque-rotulo">${rotulo}</span>
+      ${avatar(primeiro, "avatar-medio")}
+      <span class="destaque-nome">${nomesEmpatados(lider.ids)}</span>
+      <span class="destaque-valor"><b class="num">${lider.valor}</b> ${unidade(lider.valor)}</span>
+      ${empate}
+    </a>`;
+}
+
+async function telaInicio() {
+  await carregarDadosPeriodo();
+  const hoje = hojeISO();
+
+  // --- Próximo racha -------------------------------------------------
+  const quinta = proximaQuinta();
+  const contagem = quinta.dias === 0
+    ? `<span class="contagem-hoje">Hoje!</span>`
+    : `<span class="contagem-numero num">${quinta.dias}</span>
+       <span class="contagem-texto">${quinta.dias === 1 ? "dia" : "dias"}</span>`;
+
+  // --- Último racha (o mais recente até hoje) -------------------------
+  const ultimo = dados.rachas.find((r) => r.data_jogo <= hoje);
+  let telao = `<p class="vazio">Nenhum racha registrado ainda.</p>`;
+  if (ultimo) {
+    const escalacoes = await carregarEscalacoesRacha(ultimo);
+
+    // Artilheiro da rodada: soma os gols de todas as partidas do racha.
+    const golsPorJogador = new Map();
+    for (const e of escalacoes) {
+      golsPorJogador.set(e.jogador_id, (golsPorJogador.get(e.jogador_id) ?? 0) + e.gols);
+    }
+    const artilheiro = lideres(
+      new Map([...golsPorJogador].map(([id, gols]) => [id, { jogador_id: id, gols }])), "gols");
+    const linhaArtilheiro = artilheiro.ids.length
+      ? `<p class="telao-artilheiro">⚽ Artilheiro da rodada:
+           <b>${nomesEmpatados(artilheiro.ids)}</b>
+           (${artilheiro.valor} ${artilheiro.valor === 1 ? "gol" : "gols"})</p>`
+      : "";
+
+    // Placar estilo telão (ou o aviso, se for um racha recuperado).
+    const miolo = ultimo.tem_times
+      ? ultimo.partidas.map((p) => `
+          <div class="telao-placar">
+            <div class="telao-time">
+              <span class="telao-rotulo">Time A</span>
+              <span class="telao-num num ${p.resultado === "A" ? "telao-vence" : ""}">${p.gols_a}</span>
+            </div>
+            <span class="telao-x">×</span>
+            <div class="telao-time">
+              <span class="telao-rotulo">Time B</span>
+              <span class="telao-num num ${p.resultado === "B" ? "telao-vence" : ""}">${p.gols_b}</span>
+            </div>
+          </div>
+          <p class="telao-resultado">${p.resultado === "empate" ? "Empate" : `Vitória do Time ${p.resultado}`}</p>`).join("")
+      : `<p class="telao-aviso">Reconstruído de anotações — sem times e placar</p>`;
+
+    telao = `
+      <a class="telao" href="#racha/${ultimo.id}">
+        <div class="telao-topo">
+          <span>Último racha</span>
+          <span>${diaSemana(ultimo.data_jogo)}, ${dataBR(ultimo.data_jogo)}</span>
+        </div>
+        ${miolo}
+        ${linhaArtilheiro}
+      </a>`;
+  }
+
+  // --- Destaques da temporada (mesma regra do ranking "Este ano") -----
+  const temporada = estatisticasTemporada();
+  const artilheiro = lideres(temporada.numeros, "gols");
+  const garcom = lideres(temporada.numeros, "assistencias");
+  const sequencia = lideres(dados.sequencias, "sequencia_atual");
+
+  return {
+    titulo: "Início",
+    html: `
+      <section class="inicio-topo">
+        <img class="inicio-escudo" src="img/escudo-256.png" alt="Escudo do Racha de Quinta">
+        <h2 class="inicio-nome">Racha de Quinta</h2>
+      </section>
+
+      <section class="cartao proximo">
+        <div>
+          <span class="proximo-rotulo">Próximo racha</span>
+          <span class="proximo-data">${quinta.dias === 0 ? "Hoje" : "Quinta"}, ${dataBR(quinta.iso).slice(0, 5)}</span>
+        </div>
+        <div class="contagem" aria-label="${quinta.dias === 0 ? "O racha é hoje" : `Faltam ${quinta.dias} dias`}">
+          ${quinta.dias === 0 ? "" : '<span class="contagem-faltam">faltam</span>'}
+          ${contagem}
+        </div>
+      </section>
+
+      ${telao}
+
+      <h2 class="secao-titulo">Destaques de ${temporada.ano}</h2>
+      <div class="destaques">
+        ${cardDestaque("Artilheiro", artilheiro, (v) => (v === 1 ? "gol" : "gols"))}
+        ${cardDestaque("Garçom", garcom, () => "assist.")}
+        ${cardDestaque("Sequência", sequencia, (v) => (v === 1 ? "vitória" : "vitórias"))}
+      </div>
+      <p class="legenda">Artilheiro e garçom: jogos de ${temporada.ano}, já com os ajustes lançados no ano
+        (mesma regra do ranking "Este ano"). Sequência: vitórias seguidas atuais.</p>`,
+  };
 }
 
 
@@ -593,7 +909,7 @@ let ultimaRota = null;
 // Lê o endereço (#...) e desenha a tela correspondente.
 async function desenharTela() {
   const meuPedido = ++pedidoAtual;
-  const [rota, parametro] = (location.hash.replace("#", "") || "rankings").split("/");
+  const [rota, parametro] = (location.hash.replace("#", "") || "inicio").split("/");
 
   // Marca a aba ativa (as telas de detalhe ficam com a aba "mãe" acesa).
   const abaAtiva = { racha: "rachas", jogador: "jogadores" }[rota] ?? rota;
@@ -601,11 +917,14 @@ async function desenharTela() {
     aba.classList.toggle("ativa", aba.dataset.aba === abaAtiva));
 
   try {
-    if (!dados.carregado) conteudo.innerHTML = esqueleto({ chips: rota === "rankings" || !rota });
+    if (!dados.carregado) conteudo.innerHTML = esqueleto({ chips: rota === "rankings" });
     await carregarDadosBase();
 
     let tela;
-    if (rota === "rachas") tela = telaRachas();
+    if (rota === "inicio") {
+      if (!dadosPeriodo.participacoes.length) conteudo.innerHTML = esqueleto({ linhas: 4 });
+      tela = await telaInicio();
+    } else if (rota === "rachas") tela = telaRachas();
     else if (rota === "racha") {
       conteudo.innerHTML = esqueleto();
       tela = await telaRacha(Number(parametro));

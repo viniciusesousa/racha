@@ -8,7 +8,9 @@ O que este script faz:
      LIGADO ÀS BORDAS da imagem (como um "balde de tinta" a partir dos
      cantos). O preto que faz parte do desenho, cercado pelo escudo,
      é preservado.
-  3. Mostra no terminal as cores principais do escudo (para a paleta).
+  3. Cria web/img/escudo-256.png: versão pequena e leve do escudo
+     transparente, usada nas telas (cabeçalho, aba Início, ícone da aba).
+  4. Mostra no terminal as cores principais do escudo (para a paleta).
 
 Como rodar (na pasta principal do projeto):
     python scripts/gerar_imagens.py
@@ -31,6 +33,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 PASTA_PROJETO = Path(__file__).resolve().parent.parent
 ESCUDO_ORIGINAL = PASTA_PROJETO / "web" / "img" / "escudo.png.jfif"
 ESCUDO_TRANSPARENTE = PASTA_PROJETO / "web" / "img" / "escudo.png"
+ESCUDO_LEVE = PASTA_PROJETO / "web" / "img" / "escudo-256.png"
 
 # Até que brilho um pixel é considerado "quase preto" (0 a 255).
 # O JPEG tem ruído, então o fundo não é preto puro.
@@ -112,6 +115,16 @@ def gerar_escudo_transparente():
     return imagem
 
 
+def gerar_escudo_leve(imagem, lado=256):
+    """Salva uma cópia pequena do escudo (o maior lado com `lado` pixels)."""
+    copia = imagem.copy()
+    copia.thumbnail((lado, lado), Image.LANCZOS)
+    copia.save(ESCUDO_LEVE, optimize=True)
+    tamanho_kb = ESCUDO_LEVE.stat().st_size / 1024
+    print(f"Gerado: {ESCUDO_LEVE.relative_to(PASTA_PROJETO)} "
+          f"({copia.width}x{copia.height}; {tamanho_kb:.0f} KB)")
+
+
 def cores_principais(imagem, quantidade=8):
     """Mostra as cores mais presentes no escudo (ignorando o transparente)."""
     rgba = np.asarray(imagem)
@@ -132,4 +145,5 @@ def cores_principais(imagem, quantidade=8):
 
 if __name__ == "__main__":
     escudo = gerar_escudo_transparente()
+    gerar_escudo_leve(escudo)
     cores_principais(escudo)

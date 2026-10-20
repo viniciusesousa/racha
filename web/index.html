@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#1f3309" media="(prefers-color-scheme: dark)">
   <meta name="color-scheme" content="light dark">
   <title>Racha de Quinta</title>
-  <link rel="icon" type="image/png" href="img/escudo.png">
+  <link rel="icon" type="image/png" href="img/escudo-256.png">
   <!-- Fontes do Google: Barlow Condensed (números, estilo placar) e Inter (textos) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,7 +21,7 @@
   <!-- Cabeçalho fixo no topo, com o título da tela atual -->
   <header class="topo">
     <div class="topo-conteudo">
-    <img class="topo-escudo" id="topo-escudo" src="img/escudo.png" alt="">
+    <img class="topo-escudo" id="topo-escudo" src="img/escudo-256.png" alt="">
     <button class="topo-voltar" id="botao-voltar" type="button" aria-label="Voltar" hidden>
       <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
         <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -46,6 +46,13 @@
   <!-- Barra de abas na parte de baixo da tela -->
   <nav class="abas" aria-label="Navegação principal">
     <div class="abas-conteudo">
+    <a class="aba" href="#inicio" data-aba="inicio">
+      <!-- Ícone de casa -->
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M4 11l8-7 8 7M6 9.5V20h4.5v-5.5h3V20H18V9.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Início</span>
+    </a>
     <a class="aba" href="#rankings" data-aba="rankings">
       <!-- Ícone de troféu -->
       <svg viewBox="0 0 24 24" aria-hidden="true">

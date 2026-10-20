@@ -6,8 +6,9 @@ App web para controlar o racha semanal de futebol (quintas-feiras), substituindo
 ## Situação atual
 - Em 19/10/2026, a estrutura do banco (`banco/01_estrutura.sql`) e o histórico da planilha (`banco/02_dados_historicos.sql`) já foram carregados no Supabase.
 - Também em 19/10/2026, as visões de ranking (`banco/03_visoes_rankings.sql`: `v_placar_partidas`, `v_estatisticas_jogadores` e `v_sequencias`) foram criadas no Supabase.
-- **Esses três scripts (01, 02 e 03) NÃO devem ser rodados de novo** no Supabase: o banco já tem as tabelas, os dados e as visões, e rodar de novo daria erro ou duplicaria registros.
-- A área pública (pasta `web/`: rankings, rachas e jogadores) está pronta e testada localmente, mas ainda não foi publicada no GitHub Pages.
+- O script `banco/04_fotos_e_participacoes.sql` (colunas de foto, bucket `fotos-jogadores` e visão `v_participacoes`) também foi executado no Supabase.
+- **Esses quatro scripts (01, 02, 03 e 04) NÃO devem ser rodados de novo** no Supabase: o banco já tem as tabelas, os dados e as visões, e rodar de novo daria erro ou duplicaria registros.
+- A área pública (pasta `web/`) está sendo redesenhada por etapas (identidade do escudo, Início, Rankings, Rachas, Ficha, PWA) e ainda não foi publicada no GitHub Pages.
 - Mudanças futuras na estrutura devem ser feitas em novos scripts numerados (ex.: `banco/03_...sql`), com confirmação do usuário antes de executar.
 
 ## Tecnologia
