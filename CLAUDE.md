@@ -4,16 +4,17 @@
 App web para controlar o racha semanal de futebol (quintas-feiras), substituindo um app antigo feito no Mocha (descontinuado). O usuário principal não é programador: explique cada passo em português simples e peça confirmação antes de ações importantes.
 
 ## Situação atual
-- Em 19/10/2026, todos os scripts de 01 a 05 foram executados no Supabase:
-  - `banco/01_estrutura.sql`: tabelas, regras e permissões;
-  - `banco/dados/02_dados_historicos.sql`: histórico da planilha do Mocha (fora do git);
-  - `banco/03_visoes_rankings.sql`: visões `v_placar_partidas`, `v_estatisticas_jogadores` e `v_sequencias`;
-  - `banco/04_fotos_e_participacoes.sql`: colunas de foto, bucket `fotos-jogadores` e visão `v_participacoes`;
-  - `banco/dados/05_racha_2026-10-15.sql`: racha de 15/10/2026, 2 jogadores novos, cobranças e pagamentos (fora do git).
-- **Nenhum desses scripts (01 a 05) deve ser rodado de novo** no Supabase: o banco já tem as tabelas, os dados e as visões, e rodar de novo daria erro ou duplicaria registros.
-- Saneamento de jul–out/2026 (a partir das listas e anotações do WhatsApp), preparado em 20/10/2026 e **ainda não executado**:
-  - `banco/06_ajustes_estrutura.sql`: permite `situacao = 'sem_informacao'` em rachas e `forma = 'nao_informado'` em pagamentos (rodar primeiro);
-  - `banco/dados/07_saneamento_jul_out.sql` (fora do git): corrige/inclui os rachas de 02/07 a 08/10, cobranças e pagamentos. Gerado por `banco/dados/gerar_07_saneamento.py`; tem trava para rodar uma vez só e conferência que desfaz tudo se algum número não bater.
+- Todos os scripts de 01 a 07 já foram executados no Supabase:
+  - em 19/10/2026:
+    - `banco/01_estrutura.sql`: tabelas, regras e permissões;
+    - `banco/dados/02_dados_historicos.sql`: histórico da planilha do Mocha (fora do git);
+    - `banco/03_visoes_rankings.sql`: visões `v_placar_partidas`, `v_estatisticas_jogadores` e `v_sequencias`;
+    - `banco/04_fotos_e_participacoes.sql`: colunas de foto, bucket `fotos-jogadores` e visão `v_participacoes`;
+    - `banco/dados/05_racha_2026-10-15.sql`: racha de 15/10/2026, 2 jogadores novos, cobranças e pagamentos (fora do git);
+  - em 20/10/2026 (saneamento de jul–out/2026, a partir das listas e anotações do WhatsApp; placares conferidos pelo usuário):
+    - `banco/06_ajustes_estrutura.sql`: permite `situacao = 'sem_informacao'` em rachas e `forma = 'nao_informado'` em pagamentos;
+    - `banco/dados/07_saneamento_jul_out.sql` (fora do git, gerado por `banco/dados/gerar_07_saneamento.py`): rachas de 02/07 a 08/10 corrigidos/incluídos, cadastros novos, cobranças e pagamentos desde 02/07.
+- **Nenhum desses scripts (01 a 07) deve ser rodado de novo** no Supabase: o banco já tem as tabelas, os dados e as visões, e rodar de novo daria erro ou duplicaria registros.
 - Mudanças futuras devem ser feitas em novos scripts numerados (próximo: `08_...sql`), com confirmação do usuário antes de executar. Scripts com dados reais vão para `banco/dados/`.
 - A área pública (pasta `web/`) foi redesenhada em 6 etapas: identidade visual (paleta grená, sem verde), Início, Rankings, Rachas, Ficha do jogador e app instalável (PWA).
 - **Site no ar desde 20/10/2026:** https://viniciusesousa.github.io/racha/ (marcado como `noindex, nofollow`, não aparece no Google; o link circula só no grupo).
