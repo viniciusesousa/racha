@@ -87,6 +87,9 @@ begin
   begin perform public.definir_equipe(v_racha, 3, 'A'); exception when others then v_ok := true; end;
   if not v_ok then raise exception 'FALHOU 5a: trocou de time quem tem lances'; end if;
   v_ok := false;
+  begin perform public.definir_equipe(v_racha, 1, null); exception when others then v_ok := true; end;
+  if not v_ok then raise exception 'FALHOU 5a2: tirou do time quem tem gol'; end if;
+  v_ok := false;
   begin perform public.definir_status_dia(v_racha, 1, 'nenhum'); exception when others then v_ok := true; end;
   if not v_ok then raise exception 'FALHOU 5b: removeu do dia quem tem lances'; end if;
   v_ok := false;
