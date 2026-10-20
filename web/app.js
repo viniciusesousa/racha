@@ -755,13 +755,30 @@ async function telaRankings(idCategoria, idPeriodo, idModo) {
 // =====================================================================
 // TELA: LISTA DE RACHAS
 // =====================================================================
+// Rachas agrupados por mês ("Outubro 2026"), do mais recente ao mais
+// antigo. Cada racha é um card com o placar em destaque. Os times mudam a
+// cada racha, então não usam cores fixas: o placar do vencedor só fica mais
+// forte que o do perdedor.
 
-// Placar curto de uma partida, ex.: "A 13 x 7 B" (com o vencedor em destaque).
-function placarCurto(p) {
-  const a = p.resultado === "A" ? "vencedor" : "";
-  const b = p.resultado === "B" ? "vencedor" : "";
-  return `<span class="equipe">A</span> <span class="${a}">${p.gols_a}</span> x
-          <span class="${b}">${p.gols_b}</span> <span class="equipe">B</span>`;
+// "2026-10" -> "Outubro 2026"
+function tituloMes(anoMes) {
+  const [ano, mes] = anoMes.split("-").map(Number);
+  const nome = NOMES_MESES[mes - 1];
+  return `${nome[0].toUpperCase()}${nome.slice(1)} ${ano}`;
+}
+
+// Placar de uma partida em linha: "Time A 11 × 13 Time B".
+function placarLinha(p) {
+  const forteA = p.resultado === "A" || p.resultado === "empate";
+  const forteB = p.resultado === "B" || p.resultado === "empate";
+  return `
+    <span class="racha-placar" aria-label="Time A ${p.gols_a} a ${p.gols_b} Time B">
+      <span class="time-nome">Time A</span>
+      <b class="num ${forteA ? "" : "perdeu"}">${p.gols_a}</b>
+      <span class="x">×</span>
+      <b class="num ${forteB ? "" : "perdeu"}">${p.gols_b}</b>
+      <span class="time-nome">Time B</span>
+    </span>`;
 }
 
 function telaRachas() {
@@ -769,28 +786,52 @@ function telaRachas() {
     return { titulo: "Rachas", html: `<p class="vazio">Nenhum racha registrado ainda.</p>` };
   }
 
-  const itens = dados.rachas.map((r) => {
-    const varias = r.partidas.length > 1;
-    // Com times: mostra o placar de cada partida. Sem times: aviso.
-    const placares = r.tem_times
-      ? r.partidas.map((p) =>
-          `<div class="placar">${varias ? `<span class="equipe">P${p.numero}</span> ` : ""}${placarCurto(p)}</div>`).join("")
+  // Agrupa por mês, mantendo a ordem (mais recente primeiro).
+  const meses = new Map();
+  for (const r of dados.rachas) {
+    const chave = r.data_jogo.slice(0, 7);
+    if (!meses.has(chave)) meses.set(chave, []);
+    meses.get(chave).push(r);
+  }
+
+  const html = [...meses].map(([anoMes, rachas]) => {
+    // Um único aviso por mês que tenha rachas recuperados.
+    const temRecuperado = rachas.some((r) => r.origem === "recuperado");
+    const aviso = temRecuperado
+      ? `<p class="aviso aviso-mes">Os rachas marcados como <b>recuperado</b> foram reconstruídos de
+           anotações: têm gols e assistências, mas não têm times nem placar.</p>`
       : "";
+
+    const cards = rachas.map((r) => {
+      const varias = r.partidas.length > 1;
+      const miolo = r.tem_times
+        ? r.partidas.map((p) => `
+            <div class="racha-partida">
+              ${varias ? `<span class="racha-numero">Partida ${p.numero}</span>` : ""}
+              ${placarLinha(p)}
+            </div>`).join("")
+        : `<div class="racha-partida"><span class="racha-sem-placar">Sem times e sem placar</span></div>`;
+      return `
+        <li>
+          <a class="racha-card" href="#racha/${r.id}">
+            <span class="racha-card-topo">
+              <span class="racha-data">${diaSemana(r.data_jogo)}, ${dataBR(r.data_jogo).slice(0, 5)}</span>
+              ${r.origem === "recuperado" ? '<span class="selo selo-origem">recuperado</span>' : ""}
+            </span>
+            ${miolo}
+          </a>
+        </li>`;
+    }).join("");
+
     return `
-      <li>
-        <a class="linha" href="#racha/${r.id}">
-          <span class="linha-principal">
-            <span class="racha-data">${dataBR(r.data_jogo)}</span>
-            <span class="selo selo-origem">${esc(nomeOrigem(r.origem))}</span>
-            <span class="linha-sub">${diaSemana(r.data_jogo)}${varias ? ` · ${r.partidas.length} partidas` : ""}</span>
-            ${r.tem_times ? "" : `<p class="aviso">Reconstruído de anotações — sem times e placar</p>`}
-          </span>
-          ${placares ? `<span>${placares}</span>` : ""}
-        </a>
-      </li>`;
+      <section class="mes">
+        <h2 class="secao-titulo">${tituloMes(anoMes)}</h2>
+        ${aviso}
+        <ul class="racha-lista">${cards}</ul>
+      </section>`;
   }).join("");
 
-  return { titulo: "Rachas", html: `<ul class="lista">${itens}</ul>` };
+  return { titulo: "Rachas", html };
 }
 
 
@@ -798,21 +839,25 @@ function telaRachas() {
 // TELA: DETALHE DO RACHA
 // =====================================================================
 
-// Uma linha de jogador com seus números na partida.
-function linhaJogadorPartida(e) {
+// Números de um jogador na partida, com ícones:
+//   ⚽ = gols, 👟 = assistências, "gol contra" em selo.
+// O texto escondido (classe "so-leitor") é lido pelos leitores de tela.
+function numerosComIcones(e) {
+  const partes = [];
+  if (e.gols) partes.push(`<span class="so-leitor">${e.gols} ${e.gols === 1 ? "gol" : "gols"}</span><span aria-hidden="true">⚽ ${e.gols}</span>`);
+  if (e.assistencias) partes.push(`<span class="so-leitor">${e.assistencias} ${e.assistencias === 1 ? "assistência" : "assistências"}</span><span aria-hidden="true">👟 ${e.assistencias}</span>`);
+  if (e.gols_contra) partes.push(`<span class="selo selo-contra">${e.gols_contra > 1 ? `${e.gols_contra} gols contra` : "gol contra"}</span>`);
+  return partes.length ? partes.join(" ") : `<span class="sem-numeros">–</span>`;
+}
+
+// Uma linha de jogador dentro da coluna do time.
+function linhaJogadorTime(e) {
   const jogador = dados.jogadores.get(e.jogador_id);
-  const gc = e.gols_contra > 0 ? `<span>GC <b>${e.gols_contra}</b></span>` : "";
   return `
     <li>
-      <a class="linha" href="#jogador/${e.jogador_id}">
-        <span class="linha-principal">
-          <span class="linha-nome">${esc(jogador?.nome)}${selosJogador(jogador)}</span>
-        </span>
-        <span class="numeros">
-          <span>G <b>${e.gols}</b></span>
-          <span>A <b>${e.assistencias}</b></span>
-          ${gc}
-        </span>
+      <a class="jogador-time" href="#jogador/${e.jogador_id}">
+        <span class="jogador-time-nome">${esc(jogador?.nome)}${selosJogador(jogador)}</span>
+        <span class="jogador-time-numeros">${numerosComIcones(e)}</span>
       </a>
     </li>`;
 }
@@ -825,54 +870,71 @@ function ordenarEscalacao(lista) {
       .localeCompare(dados.jogadores.get(b.jogador_id)?.nome ?? "", "pt-BR"));
 }
 
+// Coluna de um time: título com placar e a lista de jogadores.
+function colunaTime(nome, gols, venceu, jogadores) {
+  return `
+    <section class="coluna-time">
+      <h3 class="coluna-time-titulo">
+        <span>${nome}${venceu ? ' <span class="selo selo-venceu">venceu</span>' : ""}</span>
+        <b class="num">${gols}</b>
+      </h3>
+      <ul class="coluna-time-lista">
+        ${jogadores.map(linhaJogadorTime).join("") || '<li class="vazio">Sem jogadores</li>'}
+      </ul>
+    </section>`;
+}
+
 async function telaRacha(id) {
   const racha = dados.rachas.find((r) => r.id === id);
   if (!racha) return { titulo: "Racha", html: `<p class="vazio">Racha não encontrado.</p>` };
 
   const escalacoes = await carregarEscalacoesRacha(racha);
   const titulo = `Racha de ${dataBR(racha.data_jogo)}`;
+  const quando = `${diaSemana(racha.data_jogo)}, ${dataBR(racha.data_jogo)}`;
 
-  let html = `
-    <p class="linha-sub">${diaSemana(racha.data_jogo)} ·
-      <span class="selo selo-origem" style="margin-left:0">${esc(nomeOrigem(racha.origem))}</span></p>`;
-
+  let html = "";
   for (const p of racha.partidas) {
     const desta = escalacoes.filter((e) => e.partida_id === p.partida_id);
-    const rotulo = racha.partidas.length > 1 ? `Partida ${p.numero}` : "";
+    const rotulo = racha.partidas.length > 1 ? `<h2 class="secao-titulo">Partida ${p.numero}</h2>` : "";
 
     if (!racha.tem_times) {
-      // Racha recuperado: sem times e sem placar, só a lista de quem jogou.
+      // Racha sem times (ex.: recuperado): aviso e uma lista só.
       html += `
-        ${rotulo ? `<h2 class="secao-titulo">${rotulo}</h2>` : ""}
-        <p class="aviso" style="margin-bottom:16px">Reconstruído de anotações — sem times e placar</p>
-        <h2 class="secao-titulo">Jogadores (${desta.length})</h2>
-        <ul class="lista">${ordenarEscalacao(desta).map(linhaJogadorPartida).join("")}</ul>`;
+        ${rotulo}
+        <div class="cartao placar-cabecalho">
+          <span class="placar-quando">${quando}
+            ${racha.origem === "recuperado" ? '<span class="selo selo-origem">recuperado</span>' : ""}</span>
+          <p class="placar-sem">Sem times e sem placar</p>
+        </div>
+        ${racha.origem === "recuperado"
+          ? `<p class="aviso aviso-mes">Racha reconstruído de anotações: os gols e assistências foram
+               recuperados, mas não se sabe quem jogou em cada time.</p>` : ""}
+        <section class="coluna-time coluna-unica">
+          <h3 class="coluna-time-titulo"><span>Jogadores</span><b class="num">${desta.length}</b></h3>
+          <ul class="coluna-time-lista">${ordenarEscalacao(desta).map(linhaJogadorTime).join("")}</ul>
+        </section>`;
       continue;
     }
 
-    const resultado = p.resultado === "empate" ? "Empate"
-      : `Vitória do time ${p.resultado}`;
-    const timeA = ordenarEscalacao(desta.filter((e) => e.equipe === "A"));
-    const timeB = ordenarEscalacao(desta.filter((e) => e.equipe === "B"));
-
+    const resultado = p.resultado === "empate" ? "Empate" : `Vitória do Time ${p.resultado}`;
     html += `
-      ${rotulo ? `<h2 class="secao-titulo">${rotulo}</h2>` : ""}
-      <div class="cartao">
-        <div class="placar-grande">
-          <div><div class="rotulo">TIME A</div><div class="numero ${p.resultado === "A" ? "vencedor" : ""}">${p.gols_a}</div></div>
-          <div class="x">x</div>
-          <div><div class="rotulo">TIME B</div><div class="numero ${p.resultado === "B" ? "vencedor" : ""}">${p.gols_b}</div></div>
+      ${rotulo}
+      <div class="cartao placar-cabecalho">
+        <span class="placar-quando">${quando}</span>
+        <div class="placar-grande" aria-label="Time A ${p.gols_a} a ${p.gols_b} Time B">
+          <div><div class="rotulo">Time A</div><div class="numero ${p.resultado === "B" ? "perdeu" : ""}">${p.gols_a}</div></div>
+          <div class="x">×</div>
+          <div><div class="rotulo">Time B</div><div class="numero ${p.resultado === "A" ? "perdeu" : ""}">${p.gols_b}</div></div>
         </div>
         <p class="resultado-texto">${resultado}</p>
       </div>
-      <h2 class="secao-titulo">Time A ${p.resultado === "A" ? '<span class="vencedor">· venceu</span>' : ""}</h2>
-      <ul class="lista">${timeA.map(linhaJogadorPartida).join("") || '<li class="linha">Sem jogadores</li>'}</ul>
-      <h2 class="secao-titulo">Time B ${p.resultado === "B" ? '<span class="vencedor">· venceu</span>' : ""}</h2>
-      <ul class="lista">${timeB.map(linhaJogadorPartida).join("") || '<li class="linha">Sem jogadores</li>'}</ul>`;
+      <div class="colunas-times">
+        ${colunaTime("Time A", p.gols_a, p.resultado === "A", ordenarEscalacao(desta.filter((e) => e.equipe === "A")))}
+        ${colunaTime("Time B", p.gols_b, p.resultado === "B", ordenarEscalacao(desta.filter((e) => e.equipe === "B")))}
+      </div>`;
   }
 
-  html += `<p class="legenda">G = gols · A = assistências · GC = gols contra.
-    O gol contra conta no placar do time adversário.</p>`;
+  html += `<p class="legenda">⚽ gols · 👟 assistências · O gol contra conta no placar do time adversário.</p>`;
 
   return { titulo, html, voltar: "#rachas" };
 }

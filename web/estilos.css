@@ -536,19 +536,62 @@ a.linha:active { background: var(--principal-suave); }
    RACHAS
    ===================================================================== */
 .racha-data { font-weight: 700; }
-.placar {
-  flex: none;
-  font-size: 1.5rem;
-  font-weight: 700;
+.vencedor { color: var(--ativo); }
+
+/* ---------- Lista agrupada por mês ---------- */
+.mes + .mes { margin-top: 8px; }
+.aviso-mes { margin: 0 0 10px; line-height: 1.35; }
+.racha-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+/* Cada racha é um card; o placar fica em destaque.
+   Times sem cor fixa: o placar de quem perdeu só fica mais apagado. */
+.racha-card {
+  display: block;
+  padding: 12px 14px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--cartao);
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+.racha-card:active { background: var(--principal-suave); }
+@media (hover: hover) {
+  .racha-card:hover { border-color: var(--ativo); }
+}
+.racha-card-topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+}
+.racha-card-topo .racha-data { color: var(--texto); text-transform: capitalize; }
+.racha-partida {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.racha-numero { color: var(--texto-suave); font-size: 0.75rem; font-weight: 700; }
+.racha-placar {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   white-space: nowrap;
 }
-.placar .equipe {
-  font-family: var(--fonte-texto);
-  color: var(--texto-suave);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-.vencedor { color: var(--ativo); }
+.racha-placar b { font-size: 2.2rem; font-weight: 800; line-height: 1; }
+.racha-placar .x { color: var(--texto-suave); font-size: 1.2rem; font-weight: 700; }
+.time-nome { color: var(--texto-suave); font-size: 0.8rem; font-weight: 700; }
+.perdeu { color: var(--texto-suave); }  /* 6,6 : 1 — legível, só mais apagado */
+.racha-sem-placar { color: var(--texto-suave); font-size: 0.9rem; font-weight: 600; padding: 6px 0; }
 
 .aviso {
   margin: 4px 0 0;
@@ -594,6 +637,86 @@ a.linha:active { background: var(--principal-suave); }
   color: var(--texto-suave);
 }
 .secao-titulo .vencedor { text-transform: none; letter-spacing: 0; }
+
+/* ---------- Detalhe do racha: cabeçalho com placar ---------- */
+.placar-cabecalho { text-align: center; }
+.placar-quando {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--texto-suave);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.placar-quando .selo { text-transform: none; }
+.placar-sem { margin: 4px 0; color: var(--texto-suave); font-weight: 700; }
+.placar-grande .numero.perdeu { color: var(--texto-suave); }
+
+/* ---------- Detalhe do racha: duas colunas (Time A e Time B) ---------- */
+.colunas-times {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-items: start;
+}
+.coluna-time {
+  padding: 10px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--cartao);
+}
+.coluna-time-titulo {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0 0 4px;
+  font-family: var(--fonte-numero);
+  font-size: 1.15rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.coluna-time-titulo b { font-size: 1.6rem; }
+.coluna-time-lista { list-style: none; margin: 6px 0 0; padding: 0; }
+.coluna-time-lista > li + li { border-top: 1px solid var(--borda); }
+.jogador-time {
+  display: block;
+  padding: 8px 2px;
+  color: inherit;
+  text-decoration: none;
+}
+.jogador-time-nome {
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.jogador-time-nome .selo { margin-left: 4px; }
+.jogador-time-numeros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-top: 2px;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.sem-numeros { color: var(--texto-suave); }
+.coluna-unica .coluna-time-lista { columns: 2; column-gap: 16px; }
+.coluna-unica .coluna-time-lista > li { break-inside: avoid; }
+
+/* Selos do detalhe */
+.selo-venceu { margin-left: 4px; vertical-align: 3px; letter-spacing: 0; text-transform: none; background: var(--ouro); color: var(--sobre-medalha); }  /* 9,0 : 1 */
+.selo-contra { margin-left: 0; background: var(--derrota); color: var(--sobre-derrota); } /* 6,6 : 1 */
+
+/* Texto só para leitores de tela (invisível na tela) */
+.so-leitor {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 
 /* Números de cada jogador no detalhe (G, A, GC) */
 .numeros {
