@@ -1195,3 +1195,117 @@ button.aba {
 .mensagem-aviso { background: var(--aviso-fundo); color: var(--aviso); }      /* 7,5 : 1 */
 
 .admin-usuario { margin: 0 0 12px; color: var(--texto-suave); font-size: 0.85rem; }
+
+/* Faixa vermelha de falha na gravação (fica acima das abas) */
+.faixa-falha {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: calc(var(--altura-abas) + env(safe-area-inset-bottom) + 8px);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(var(--largura-maxima) - 16px);
+  margin: 0 auto;
+  padding: 12px 14px;
+  border-radius: var(--raio);
+  background: var(--derrota);
+  color: var(--sobre-derrota);          /* 6,6 : 1 */
+  font-weight: 600;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+.faixa-falha[hidden] { display: none; }
+.faixa-falha span:first-child { flex: 1; }
+.faixa-falha-botoes { display: flex; gap: 6px; flex: none; }
+.faixa-falha button {
+  padding: 6px 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* =====================================================================
+   ADMIN · RACHA DO DIA
+   ===================================================================== */
+.racha-dia-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.racha-dia-data { display: block; font-family: var(--fonte-numero); font-size: 1.5rem; font-weight: 700; text-transform: capitalize; }
+.racha-dia-sub { display: block; color: var(--texto-suave); font-size: 0.82rem; }
+.racha-dia-topo .link-botao { margin: 0; flex: none; }
+
+.partes-racha { display: flex; width: 100%; margin-bottom: 12px; }
+.partes-racha .segmento { flex: 1; text-align: center; border: 0; background: transparent; font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--texto); }
+.partes-racha .segmento.ativa { background: var(--ativo); color: var(--sobre-ativo); }
+
+.form-grade { display: grid; gap: 12px; }
+
+/* "+ novo jogador" e sugestões de nomes parecidos */
+.novo-jogador .campo span { font-family: var(--fonte-numero); font-size: 1.1rem; }
+.sugestoes { list-style: none; margin: 6px 0 10px; padding: 0; display: grid; gap: 6px; }
+.sugestao {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--fundo);
+  color: var(--texto);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sugestao:disabled { color: var(--texto-suave); cursor: default; }
+.botao-secundario { background: var(--cartao); color: var(--ativo); border: 2px solid var(--ativo); }
+
+/* Linhas da lista do dia e dos times */
+.dia-linha,
+.time-linha {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 10px;
+  padding: 10px 12px;
+  transition: opacity 0.15s;
+}
+.dia-nome { font-weight: 600; min-width: 0; }
+.dia-nome small { color: var(--texto-suave); font-weight: 500; }
+.dia-nome .selo { vertical-align: 1px; }
+.status-botoes { display: flex; gap: 6px; flex: none; }
+.status {
+  min-width: 44px;
+  min-height: 40px;            /* área de toque confortável */
+  padding: 6px 10px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--cartao);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+/* Cores de cada status marcado (todas com contraste AA) */
+.status.ativa { border-color: transparent; }
+.status-presente.ativa, .time-botao.ativa { background: var(--ativo); color: var(--sobre-ativo); }
+.status-goleiro.ativa { background: var(--ouro); color: var(--sobre-medalha); }
+.status-faltou.ativa { background: var(--derrota); color: var(--sobre-derrota); }
+.gravando { opacity: 0.5; pointer-events: none; }
+
+/* Contagem dos times */
+.placar-times { display: flex; gap: 8px; margin-bottom: 4px; }
+.placar-times span {
+  flex: 1;
+  padding: 10px 6px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--cartao);
+  color: var(--texto-suave);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+}
+.placar-times b { display: block; color: var(--texto); font-size: 1.8rem; line-height: 1.1; }
+.contagem-time { margin-left: 4px; color: var(--texto); }

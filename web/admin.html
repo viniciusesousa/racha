@@ -89,6 +89,15 @@
     </section>
   </main>
 
+  <!-- Faixa vermelha de falha na gravação (com "Tentar de novo") -->
+  <div class="faixa-falha" id="faixa-falha" role="alert" hidden>
+    <span id="falha-texto"></span>
+    <span class="faixa-falha-botoes">
+      <button type="button" id="falha-repetir">Tentar de novo</button>
+      <button type="button" id="falha-fechar" aria-label="Fechar aviso">✕</button>
+    </span>
+  </div>
+
   <!-- Abas do admin (só aparecem para admin) -->
   <nav class="abas" id="abas-admin" aria-label="Seções do admin" hidden>
     <div class="abas-conteudo">
@@ -118,6 +127,7 @@
   <!-- Biblioteca do Supabase (CDN), configuração (escolhe o banco) e lógica do admin -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script src="config.js"></script>
+  <script src="admin-racha.js"></script>
   <script src="admin.js"></script>
 </body>
 </html>

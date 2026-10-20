@@ -1,0 +1,438 @@
+// =====================================================================
+// App do Racha — área do admin: RACHA DO DIA
+// =====================================================================
+// Pensado para usar na beira da quadra, no celular. Cada toque grava na
+// hora (sem botão "salvar"); se a gravação falhar, aparece a faixa
+// vermelha com "Tentar de novo" (função gravar, em admin.js).
+//
+// Partes desta tela:
+//   1. Abrir racha: data (padrão: hoje) e valor (padrão das configurações).
+//      Se já existir racha na data, avisa e abre o existente.
+//   2. Lista do dia: jogadores ativos com busca; para cada um,
+//      Presente / Goleiro (não paga) / Faltou de última hora (paga, sem
+//      presença). Botão "+ novo jogador" (avisa nomes parecidos antes de
+//      cadastrar, para evitar duplicatas).
+//   3. Times: dividir os presentes em Time A e Time B com toque.
+//   4. Lances e 5. Fechamento: próximas etapas.
+//
+// Usa as funções do banco (08_area_admin.sql): abrir_racha,
+// definir_status_dia e definir_equipe — cada uma grava tudo ou nada.
+// =====================================================================
+
+window.SecaoRacha = (() => {
+  // ---------------------------------------------------------------
+  // Estado da tela (o que está carregado do banco)
+  // ---------------------------------------------------------------
+  const estado = {
+    el: null,              // elemento onde a tela é desenhada
+    racha: null,           // { id, data_jogo, valor_cobrado, partida_id }
+    jogadores: new Map(),  // id -> { id, nome, apelido, tipo, ativo }
+    status: new Map(),     // jogador id -> 'presente' | 'goleiro' | 'faltou'
+    equipe: new Map(),     // jogador id -> 'A' | 'B' (escalações)
+    parte: "lista",        // 'lista' | 'times' | 'lances' | 'fechamento'
+    busca: "",
+    gravando: new Set(),   // jogadores com gravação em andamento
+    novoNome: "",          // texto digitado em "+ novo jogador"
+  };
+
+  // ---------------------------------------------------------------
+  // Funções auxiliares
+  // ---------------------------------------------------------------
+  function hojeISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+  function dataBR(iso) { const [a, m, d] = iso.split("-"); return `${d}/${m}/${a}`; }
+  function diaSemana(iso) {
+    const [a, m, d] = iso.split("-").map(Number);
+    return ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"][new Date(a, m - 1, d).getDay()];
+  }
+  function reais(v) { return Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
+  function normalizar(t) { return String(t ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim(); }
+  const porNome = (a, b) => a.nome.localeCompare(b.nome, "pt-BR");
+
+  // Distância entre dois textos (quantas letras trocar para virar o outro).
+  function distancia(a, b) {
+    const linha = Array.from({ length: b.length + 1 }, (_, i) => i);
+    for (let i = 1; i <= a.length; i++) {
+      let anterior = linha[0]; linha[0] = i;
+      for (let j = 1; j <= b.length; j++) {
+        const guardado = linha[j];
+        linha[j] = Math.min(linha[j] + 1, linha[j - 1] + 1, anterior + (a[i - 1] === b[j - 1] ? 0 : 1));
+        anterior = guardado;
+      }
+    }
+    return linha[b.length];
+  }
+
+  // Jogadores com nome parecido com o digitado (para evitar duplicatas).
+  // Cada palavra digitada (com 3+ letras, ou número) é comparada com as
+  // palavras do nome/apelido de cada jogador:
+  //   igual = 3 pontos; começa igual = 2; até 2 letras diferentes = 1.
+  // Aparecem primeiro os que combinam com MAIS palavras digitadas (de
+  // preferência todas) e, entre eles, os de mais pontos. Assim "convidado
+  // tste" acha "Convidado Teste" sem listar todo mundo que tem "Teste".
+  function parecidos(texto) {
+    const palavrasAlvo = normalizar(texto).split(/\s+/).filter((p) => p.length >= 3 || /^\d+$/.test(p));
+    if (!palavrasAlvo.length) return [];
+    const pontuados = [...estado.jogadores.values()].map((j) => {
+      const palavras = normalizar(`${j.nome} ${j.apelido ?? ""}`).split(/\s+/).filter(Boolean);
+      let pontos = 0, combinadas = 0;
+      for (const pa of palavrasAlvo) {
+        let melhor = 0;
+        for (const p of palavras) {
+          if (p === pa) melhor = Math.max(melhor, 3);
+          else if (p.startsWith(pa) || (pa.length >= 3 && pa.startsWith(p) && p.length >= 3)) melhor = Math.max(melhor, 2);
+          else if (p.length >= 4 && pa.length >= 4 && distancia(p, pa) <= 2) melhor = Math.max(melhor, 1);
+        }
+        pontos += melhor;
+        if (melhor > 0) combinadas++;
+      }
+      return { j, pontos, combinadas };
+    }).filter((x) => x.combinadas > 0);
+    if (!pontuados.length) return [];
+    const maisCombinadas = Math.max(...pontuados.map((x) => x.combinadas));
+    return pontuados
+      .filter((x) => x.combinadas === maisCombinadas)
+      .sort((a, b) => b.pontos - a.pontos || porNome(a.j, b.j))
+      .slice(0, 6)
+      .map((x) => x.j);
+  }
+
+  // ---------------------------------------------------------------
+  // Carregamento
+  // ---------------------------------------------------------------
+  async function carregarJogadores() {
+    const { data, error } = await banco.from("jogadores")
+      .select("id, nome, apelido, tipo, ativo").order("nome");
+    if (error) throw error;
+    estado.jogadores = new Map(data.map((j) => [j.id, j]));
+  }
+
+  // Lê presenças, cobranças e times do racha aberto e calcula o status de cada um.
+  async function carregarDia() {
+    const r = estado.racha;
+    const [pres, cob, esc_] = await Promise.all([
+      banco.from("presencas").select("jogador_id, atuou_como_goleiro").eq("racha_id", r.id),
+      banco.from("cobrancas").select("jogador_id").eq("racha_id", r.id),
+      banco.from("escalacoes").select("jogador_id, equipe").eq("partida_id", r.partida_id),
+    ]);
+    for (const resp of [pres, cob, esc_]) if (resp.error) throw resp.error;
+    estado.status = new Map();
+    for (const c of cob.data) estado.status.set(c.jogador_id, "faltou");         // cobrança sem presença
+    for (const p of pres.data) estado.status.set(p.jogador_id, p.atuou_como_goleiro ? "goleiro" : "presente");
+    estado.equipe = new Map(esc_.data.filter((e) => e.equipe).map((e) => [e.jogador_id, e.equipe]));
+  }
+
+  // Procura o racha de uma data (sem criar).
+  async function buscarRacha(data) {
+    const { data: rachas, error } = await banco.from("rachas")
+      .select("id, data_jogo, valor_cobrado, partidas(id, numero)").eq("data_jogo", data);
+    if (error) throw error;
+    const r = rachas[0];
+    if (!r) return null;
+    const partida = (r.partidas || []).find((p) => p.numero === 1);
+    return { id: r.id, data_jogo: r.data_jogo, valor_cobrado: r.valor_cobrado, partida_id: partida?.id ?? null };
+  }
+
+  async function valorPadrao() {
+    const { data } = await banco.from("configuracoes").select("valor_padrao_racha").limit(1);
+    return data && data[0] ? Number(data[0].valor_padrao_racha) : 15;
+  }
+
+  // ---------------------------------------------------------------
+  // Desenho da tela
+  // ---------------------------------------------------------------
+  function desenhar() {
+    if (!estado.racha) return desenharAbertura();
+    const r = estado.racha;
+    const contagem = { presente: 0, goleiro: 0, faltou: 0 };
+    for (const s of estado.status.values()) contagem[s]++;
+    const partes = [
+      { id: "lista", nome: "Lista" },
+      { id: "times", nome: "Times" },
+      { id: "lances", nome: "Lances" },
+      { id: "fechamento", nome: "Fechamento" },
+    ];
+    estado.el.innerHTML = `
+      <div class="cartao racha-dia-topo">
+        <div>
+          <span class="racha-dia-data">${diaSemana(r.data_jogo)}, ${dataBR(r.data_jogo)}</span>
+          <span class="racha-dia-sub">Valor: ${reais(r.valor_cobrado)} ·
+            ${contagem.presente} presentes · ${contagem.goleiro} goleiro(s) · ${contagem.faltou} falta(s)</span>
+        </div>
+        <button class="link-botao" type="button" data-acao="trocar-data">Outra data</button>
+      </div>
+      <div class="segmentado partes-racha" role="tablist" aria-label="Partes do racha">
+        ${partes.map((p) => `<button type="button" class="segmento ${p.id === estado.parte ? "ativa" : ""}"
+            data-parte="${p.id}" role="tab" aria-selected="${p.id === estado.parte}">${p.nome}</button>`).join("")}
+      </div>
+      <div id="parte-racha"></div>`;
+    desenharParte();
+  }
+
+  function desenharParte() {
+    const alvo = estado.el.querySelector("#parte-racha");
+    if (estado.parte === "lista") alvo.innerHTML = htmlLista();
+    else if (estado.parte === "times") alvo.innerHTML = htmlTimes();
+    else alvo.innerHTML = `<div class="cartao"><p class="vazio" style="padding:8px 0">
+      ${estado.parte === "lances" ? "Lances: em construção (etapa 3)." : "Fechamento financeiro: em construção (etapa 4)."}</p></div>`;
+    if (estado.parte === "lista") {
+      const busca = alvo.querySelector("#busca-dia");
+      busca.addEventListener("input", () => {
+        estado.busca = busca.value;
+        alvo.querySelector("#lista-dia").innerHTML = htmlLinhasLista();
+      });
+      const novo = alvo.querySelector("#novo-nome");
+      novo.addEventListener("input", () => {
+        estado.novoNome = novo.value;
+        alvo.querySelector("#novo-sugestoes").innerHTML = htmlSugestoes();
+      });
+    }
+  }
+
+  // --- 1. Abertura do racha
+  async function desenharAbertura(mensagemAviso = "") {
+    const valor = await valorPadrao().catch(() => 15);
+    estado.el.innerHTML = `
+      <div class="cartao">
+        <h2 class="secao-titulo" style="margin-top:0">Abrir racha</h2>
+        <form id="form-abrir" class="form-grade" novalidate>
+          <label class="campo"><span>Data do jogo</span>
+            <input type="date" id="abrir-data" value="${hojeISO()}" required></label>
+          <label class="campo"><span>Valor por jogador (R$)</span>
+            <input type="number" id="abrir-valor" min="0" step="0.5" value="${valor}" inputmode="decimal" required></label>
+          ${mensagemAviso ? `<p class="mensagem mensagem-aviso">${esc(mensagemAviso)}</p>` : ""}
+          <button class="botao botao-largo" type="submit">Abrir racha</button>
+        </form>
+        <p class="legenda">Se já existir um racha nessa data, ele é aberto (não cria outro).</p>
+      </div>`;
+    estado.el.querySelector("#form-abrir").addEventListener("submit", (e) => { e.preventDefault(); abrirRacha(); });
+  }
+
+  // --- 2. Lista do dia
+  function htmlLista() {
+    return `
+      <div class="cartao novo-jogador">
+        <label class="campo"><span>+ Novo jogador</span>
+          <input type="text" id="novo-nome" value="${esc(estado.novoNome)}" placeholder="Nome de quem vai jogar"
+                 autocomplete="off" autocapitalize="words"></label>
+        <div id="novo-sugestoes">${htmlSugestoes()}</div>
+      </div>
+      <input class="busca" id="busca-dia" type="search" placeholder="Buscar jogador" value="${esc(estado.busca)}"
+             autocomplete="off" aria-label="Buscar jogador na lista do dia">
+      <ul class="lista lista-dia" id="lista-dia">${htmlLinhasLista()}</ul>
+      <p class="legenda">Presente: joga e paga. Goleiro: joga e não paga. Faltou de última hora: paga e não
+        ganha presença. Toque de novo no status marcado para tirar o jogador do dia.</p>`;
+  }
+
+  function htmlLinhasLista() {
+    const busca = normalizar(estado.busca);
+    // Ativos + quem já tem status no dia (mesmo inativo), em ordem alfabética,
+    // com quem já está no dia primeiro.
+    const lista = [...estado.jogadores.values()]
+      .filter((j) => j.ativo || estado.status.has(j.id))
+      .filter((j) => !busca || normalizar(`${j.nome} ${j.apelido ?? ""}`).includes(busca))
+      .sort((a, b) => (estado.status.has(b.id) - estado.status.has(a.id)) || porNome(a, b));
+    if (!lista.length) return `<li class="vazio">Ninguém encontrado.</li>`;
+    const ROTULOS = [["presente", "Presente"], ["goleiro", "Goleiro"], ["faltou", "Faltou"]];
+    return lista.map((j) => {
+      const atual = estado.status.get(j.id);
+      return `
+        <li class="dia-linha ${estado.gravando.has(j.id) ? "gravando" : ""}">
+          <span class="dia-nome">${esc(j.nome)}${j.apelido ? ` <small>“${esc(j.apelido)}”</small>` : ""}
+            ${j.tipo === "goleiro" ? '<span class="selo selo-goleiro">goleiro</span>' : ""}</span>
+          <span class="status-botoes" role="group" aria-label="Status de ${esc(j.nome)}">
+            ${ROTULOS.map(([s, rotulo]) => `
+              <button type="button" class="status status-${s} ${atual === s ? "ativa" : ""}"
+                      data-jogador="${j.id}" data-status="${s}" aria-pressed="${atual === s}">${rotulo}</button>`).join("")}
+          </span>
+        </li>`;
+    }).join("");
+  }
+
+  function htmlSugestoes() {
+    const nome = estado.novoNome.trim();
+    if (nome.length < 2) return "";
+    const lista = parecidos(nome);
+    const jaNoDia = (j) => estado.status.has(j.id);
+    return `
+      ${lista.length ? `<p class="legenda" style="margin-top:8px">Já existe? Toque para colocar na lista do dia:</p>
+        <ul class="sugestoes">${lista.map((j) => `
+          <li><button type="button" class="sugestao" data-acao="usar-existente" data-jogador="${j.id}" ${jaNoDia(j) ? "disabled" : ""}>
+            ${esc(j.nome)}${j.apelido ? ` “${esc(j.apelido)}”` : ""}${!j.ativo ? " (inativo)" : ""}${jaNoDia(j) ? " — já está no dia" : ""}
+          </button></li>`).join("")}</ul>` : ""}
+      <button type="button" class="botao botao-largo botao-secundario" data-acao="cadastrar-novo">
+        É outra pessoa: cadastrar “${esc(nome)}” e marcar presente</button>`;
+  }
+
+  // --- 3. Times
+  function htmlTimes() {
+    const presentes = [...estado.status.entries()]
+      .filter(([, s]) => s === "presente" || s === "goleiro")
+      .map(([id, s]) => ({ ...estado.jogadores.get(id), goleiro: s === "goleiro" }))
+      .filter((j) => j.id);
+    if (!presentes.length) {
+      return `<div class="cartao"><p class="vazio" style="padding:8px 0">Marque os presentes na Lista primeiro.</p></div>`;
+    }
+    const grupo = (eq) => presentes.filter((j) => (estado.equipe.get(j.id) ?? null) === eq).sort(porNome);
+    const semTime = grupo(null), timeA = grupo("A"), timeB = grupo("B");
+    const linha = (j) => {
+      const eq = estado.equipe.get(j.id);
+      return `
+        <li class="time-linha ${estado.gravando.has(j.id) ? "gravando" : ""}">
+          <span class="dia-nome">${esc(j.nome)}${j.goleiro ? ' <span class="selo selo-goleiro">goleiro</span>' : ""}</span>
+          <span class="status-botoes" role="group" aria-label="Time de ${esc(j.nome)}">
+            <button type="button" class="status time-botao ${eq === "A" ? "ativa" : ""}" data-jogador="${j.id}" data-equipe="A" aria-pressed="${eq === "A"}">A</button>
+            <button type="button" class="status time-botao ${eq === "B" ? "ativa" : ""}" data-jogador="${j.id}" data-equipe="B" aria-pressed="${eq === "B"}">B</button>
+          </span>
+        </li>`;
+    };
+    const bloco = (titulo, lista) => `
+      <h3 class="secao-titulo">${titulo} <span class="contagem-time">${lista.length}</span></h3>
+      ${lista.length ? `<ul class="lista lista-dia">${lista.map(linha).join("")}</ul>` : '<p class="vazio" style="padding:4px 0">Ninguém.</p>'}`;
+    return `
+      <div class="placar-times" aria-live="polite">
+        <span>Time A <b class="num">${timeA.length}</b></span>
+        <span>Time B <b class="num">${timeB.length}</b></span>
+        <span>Sem time <b class="num">${semTime.length}</b></span>
+      </div>
+      ${semTime.length ? bloco("Sem time", semTime) : ""}
+      ${bloco("Time A", timeA)}
+      ${bloco("Time B", timeB)}
+      <p class="legenda">Toque em A ou B para escolher o time. Toque de novo no time marcado para tirar do time.</p>`;
+  }
+
+  // ---------------------------------------------------------------
+  // Ações (cada uma grava na hora)
+  // ---------------------------------------------------------------
+  async function abrirRacha() {
+    const data = estado.el.querySelector("#abrir-data").value;
+    const valor = Number(estado.el.querySelector("#abrir-valor").value);
+    if (!data) return mostrarFalha("Escolha a data do jogo.");
+    if (!(valor >= 0)) return mostrarFalha("Informe um valor válido (pode ser 0).");
+    await gravar(
+      () => banco.rpc("abrir_racha", { p_data: data, p_valor: valor }),
+      async (linhas) => {
+        const r = linhas[0];
+        estado.racha = { id: r.racha_id, partida_id: r.partida_id, data_jogo: data, valor_cobrado: valor };
+        // Busca o valor gravado de fato (no racha já existente, vale o dele).
+        const gravado = await buscarRacha(data);
+        if (gravado) estado.racha = gravado;
+        await carregarDia();
+        estado.parte = "lista";
+        desenhar();
+        if (r.ja_existia) {
+          mostrarAviso(`Já existe um racha em ${dataBR(data)}: abri o existente (valor ${reais(estado.racha.valor_cobrado)}).`);
+        }
+      });
+  }
+
+  function definirStatus(jogadorId, status) {
+    const atual = estado.status.get(jogadorId);
+    const jogador = estado.jogadores.get(jogadorId);
+    let novo = status;
+    if (atual === status) {
+      // Tocar de novo no status marcado = tirar do dia (pede confirmação).
+      if (!confirm(`Tirar ${jogador.nome} da lista do dia? (Remove presença, cobrança e time.)`)) return;
+      novo = "nenhum";
+    }
+    estado.gravando.add(jogadorId);
+    redesenharLista();
+    gravar(
+      () => banco.rpc("definir_status_dia", { p_racha: estado.racha.id, p_jogador: jogadorId, p_status: novo }),
+      () => {
+        // Mesmas regras do banco, aplicadas na tela sem precisar recarregar.
+        if (novo === "nenhum") { estado.status.delete(jogadorId); estado.equipe.delete(jogadorId); }
+        else estado.status.set(jogadorId, novo);
+        if (novo === "faltou") estado.equipe.delete(jogadorId);
+        // Redesenha aqui também: se esta gravação vier do "Tentar de novo",
+        // é este trecho que atualiza a tela.
+        desenhar();
+      }).finally(() => { estado.gravando.delete(jogadorId); desenhar(); });
+  }
+
+  function definirEquipe(jogadorId, equipe) {
+    const atual = estado.equipe.get(jogadorId) ?? null;
+    const novo = atual === equipe ? null : equipe;
+    estado.gravando.add(jogadorId);
+    desenharParte();
+    gravar(
+      () => banco.rpc("definir_equipe", { p_racha: estado.racha.id, p_jogador: jogadorId, p_equipe: novo }),
+      () => {
+        if (novo) estado.equipe.set(jogadorId, novo); else estado.equipe.delete(jogadorId);
+        desenharParte();  // também atualiza a tela quando vier do "Tentar de novo"
+      }
+    ).finally(() => { estado.gravando.delete(jogadorId); desenharParte(); });
+  }
+
+  // "+ novo jogador": usar um cadastro existente (parecido) ou criar um novo.
+  function usarExistente(jogadorId) {
+    estado.novoNome = "";
+    definirStatus(jogadorId, "presente");
+  }
+
+  async function cadastrarNovo() {
+    const nome = estado.novoNome.trim().replace(/\s+/g, " ");
+    if (nome.length < 2) return mostrarFalha("Digite o nome do novo jogador.");
+    if (!confirm(`Cadastrar "${nome}" como novo jogador (linha, ativo) e marcar presente?`)) return;
+    await gravar(
+      () => banco.from("jogadores").insert({ nome, tipo: "linha", ativo: true }).select("id, nome, apelido, tipo, ativo").single(),
+      (jogador) => {
+        estado.jogadores.set(jogador.id, jogador);
+        estado.novoNome = "";
+        definirStatus(jogador.id, "presente");
+      });
+  }
+
+  function redesenharLista() {
+    const lista = estado.el.querySelector("#lista-dia");
+    if (lista) lista.innerHTML = htmlLinhasLista();
+  }
+
+  function mostrarAviso(texto) {
+    const topo = estado.el.querySelector(".racha-dia-topo");
+    if (!topo) return;
+    const aviso = document.createElement("p");
+    aviso.className = "mensagem mensagem-aviso";
+    aviso.style.marginBottom = "12px";
+    aviso.textContent = texto;
+    topo.after(aviso);
+  }
+
+  // Um único "ouvinte" de toques para a tela toda (os botões são redesenhados).
+  function aoTocar(evento) {
+    const b = evento.target.closest("button");
+    if (!b || b.disabled) return;
+    if (b.dataset.parte) { estado.parte = b.dataset.parte; desenhar(); return; }
+    if (b.dataset.status) { definirStatus(Number(b.dataset.jogador), b.dataset.status); return; }
+    if (b.dataset.equipe) { definirEquipe(Number(b.dataset.jogador), b.dataset.equipe); return; }
+    if (b.dataset.acao === "trocar-data") { estado.racha = null; desenharAbertura(); return; }
+    if (b.dataset.acao === "usar-existente") { usarExistente(Number(b.dataset.jogador)); return; }
+    if (b.dataset.acao === "cadastrar-novo") { cadastrarNovo(); return; }
+  }
+
+  // ---------------------------------------------------------------
+  // Entrada da seção
+  // ---------------------------------------------------------------
+  async function abrir(painel) {
+    // Cria uma área só desta seção (os toques são ouvidos só aqui dentro).
+    painel.innerHTML = `<div id="secao-racha"></div>`;
+    const el = painel.querySelector("#secao-racha");
+    estado.el = el;
+    el.addEventListener("click", aoTocar);
+    el.innerHTML = `<p class="vazio">Carregando…</p>`;
+    try {
+      await carregarJogadores();
+      // Se já há racha aberto nesta sessão, continua nele; senão, tenta o de hoje.
+      if (!estado.racha) estado.racha = await buscarRacha(hojeISO());
+      if (estado.racha) await carregarDia();
+      desenhar();
+    } catch (erro) {
+      el.innerHTML = "";
+      mostrarFalha(explicarErro(erro), () => abrir(painel));
+    }
+  }
+
+  return { abrir };
+})();
