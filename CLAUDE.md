@@ -12,7 +12,8 @@ App web para controlar o racha semanal de futebol (quintas-feiras), substituindo
   - `banco/dados/05_racha_2026-10-15.sql`: racha de 15/10/2026, 2 jogadores novos, cobranças e pagamentos (fora do git).
 - **Nenhum desses scripts (01 a 05) deve ser rodado de novo** no Supabase: o banco já tem as tabelas, os dados e as visões, e rodar de novo daria erro ou duplicaria registros.
 - Mudanças futuras devem ser feitas em novos scripts numerados (próximo: `06_...sql`), com confirmação do usuário antes de executar. Scripts com dados reais vão para `banco/dados/`.
-- A área pública (pasta `web/`) está sendo redesenhada por etapas: identidade visual, Início, Rankings, Rachas, Ficha e PWA. Já estão prontas a identidade visual (paleta grená, sem verde) e a aba Início; o site ainda não foi publicado no GitHub Pages.
+- A área pública (pasta `web/`) foi redesenhada em 6 etapas, todas concluídas e testadas localmente: identidade visual (paleta grená, sem verde), Início, Rankings, Rachas, Ficha do jogador e app instalável (PWA). O site ainda não foi publicado no GitHub Pages.
+- **Ao publicar qualquer mudança na pasta `web/`, aumente `VERSAO` em `web/sw.js`** (v1 -> v2...). Assim o celular troca o cache e apaga o antigo. Arquivos novos da pasta `web/` que devam abrir sem internet entram na lista `ARQUIVOS_DO_APP` do `sw.js`. Os dados do Supabase nunca passam pelo cache.
 
 ## Identidade visual
 - Escudo em `web/img/escudo.png` (transparente, gerado por `scripts/gerar_imagens.py`; o original `escudo.png.jfif` fica intacto).

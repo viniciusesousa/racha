@@ -1289,6 +1289,16 @@ botaoVoltar.addEventListener("click", () => {
   else location.hash = destinoVoltar;  // abriu direto pelo link do detalhe
 });
 
+// App instalável: registra o "service worker" (sw.js), que guarda os
+// arquivos do app no celular para abrir rápido. Os dados do banco nunca
+// ficam guardados: sempre vêm da internet (veja os comentários no sw.js).
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch((erro) =>
+      console.warn("Não foi possível ativar o modo app:", erro));
+  });
+}
+
 // Redesenha sempre que o endereço (#...) mudar, e na primeira abertura.
 window.addEventListener("hashchange", () => { navegouNoApp = true; desenharTela(); });
 desenharTela();

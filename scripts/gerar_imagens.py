@@ -10,7 +10,13 @@ O que este script faz:
      é preservado.
   3. Cria web/img/escudo-256.png: versão pequena e leve do escudo
      transparente, usada nas telas (cabeçalho, aba Início, ícone da aba).
-  4. Mostra no terminal as cores principais do escudo (para a paleta).
+  4. Cria os ícones do app instalável (PWA) em web/img/:
+       icone-192.png e icone-512.png      -> escudo com fundo transparente;
+       icone-maskable-512.png             -> escudo menor sobre fundo grená
+                                             (o celular pode recortar em
+                                             círculo ou quadrado arredondado);
+       icone-apple-180.png                -> ícone do iPhone (fundo grená).
+  5. Mostra no terminal as cores principais do escudo (para a paleta).
 
 Como rodar (na pasta principal do projeto):
     python scripts/gerar_imagens.py
@@ -34,6 +40,10 @@ PASTA_PROJETO = Path(__file__).resolve().parent.parent
 ESCUDO_ORIGINAL = PASTA_PROJETO / "web" / "img" / "escudo.png.jfif"
 ESCUDO_TRANSPARENTE = PASTA_PROJETO / "web" / "img" / "escudo.png"
 ESCUDO_LEVE = PASTA_PROJETO / "web" / "img" / "escudo-256.png"
+PASTA_IMG = PASTA_PROJETO / "web" / "img"
+
+# Cor de fundo dos ícones com fundo sólido (grená da paleta do app).
+COR_FUNDO_ICONE = (0x6D, 0x1F, 0x2F, 255)
 
 # Até que brilho um pixel é considerado "quase preto" (0 a 255).
 # O JPEG tem ruído, então o fundo não é preto puro.
@@ -125,6 +135,42 @@ def gerar_escudo_leve(imagem, lado=256):
           f"({copia.width}x{copia.height}; {tamanho_kb:.0f} KB)")
 
 
+def escudo_no_quadrado(imagem, lado, ocupacao, fundo=None):
+    """
+    Centraliza o escudo num quadrado de `lado` pixels.
+    `ocupacao` = quanto do quadrado o escudo ocupa (0.8 = 80%).
+    `fundo` = cor sólida (RGBA) ou None para fundo transparente.
+    """
+    quadrado = Image.new("RGBA", (lado, lado), fundo or (0, 0, 0, 0))
+    copia = imagem.copy()
+    copia.thumbnail((int(lado * ocupacao), int(lado * ocupacao)), Image.LANCZOS)
+    posicao = ((lado - copia.width) // 2, (lado - copia.height) // 2)
+    quadrado.alpha_composite(copia, posicao)
+    return quadrado
+
+
+def gerar_icones(imagem):
+    """Gera os ícones do app instalável (PWA) e do iPhone."""
+    icones = {
+        # nome do arquivo: (lado, ocupação, fundo)
+        "icone-192.png": (192, 0.92, None),
+        "icone-512.png": (512, 0.92, None),
+        # "Maskable": o celular recorta o ícone; o escudo precisa caber na
+        # área segura central (círculo de 80%), por isso ocupa só 66%.
+        "icone-maskable-512.png": (512, 0.66, COR_FUNDO_ICONE),
+        # iPhone não aceita transparência no ícone: fundo grená.
+        "icone-apple-180.png": (180, 0.80, COR_FUNDO_ICONE),
+    }
+    for nome, (lado, ocupacao, fundo) in icones.items():
+        destino = PASTA_IMG / nome
+        icone = escudo_no_quadrado(imagem, lado, ocupacao, fundo)
+        if fundo:
+            icone = icone.convert("RGB")  # fundo sólido: sem canal de transparência
+        icone.save(destino, optimize=True)
+        print(f"Gerado: {destino.relative_to(PASTA_PROJETO)} "
+              f"({lado}x{lado}; {destino.stat().st_size / 1024:.0f} KB)")
+
+
 def cores_principais(imagem, quantidade=8):
     """Mostra as cores mais presentes no escudo (ignorando o transparente)."""
     rgba = np.asarray(imagem)
@@ -146,4 +192,5 @@ def cores_principais(imagem, quantidade=8):
 if __name__ == "__main__":
     escudo = gerar_escudo_transparente()
     gerar_escudo_leve(escudo)
+    gerar_icones(escudo)
     cores_principais(escudo)
