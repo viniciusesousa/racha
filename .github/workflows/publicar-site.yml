@@ -1,0 +1,55 @@
+# =====================================================================
+# Publicação automática do site no GitHub Pages
+# =====================================================================
+# Toda vez que algo é enviado (push) para a branch principal "main", o
+# GitHub roda estes passos e publica SOMENTE a pasta web/ no endereço
+# https://viniciusesousa.github.io/racha/
+#
+# Nada mais do projeto vai para o site (banco/, scripts/, CLAUDE.md...).
+# Também dá para publicar na mão pela aba "Actions" do repositório
+# (botão "Run workflow"), graças ao "workflow_dispatch".
+# =====================================================================
+
+name: Publicar site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Permissões mínimas que o GitHub Pages precisa.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Se dois envios acontecerem quase juntos, só a publicação mais nova segue.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.publicacao.outputs.page_url }}
+    steps:
+      # 1. Baixa o código do repositório.
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      # 2. Prepara o GitHub Pages.
+      - name: Configurar o Pages
+        uses: actions/configure-pages@v5
+
+      # 3. Empacota apenas a pasta web/ (o site).
+      - name: Empacotar a pasta web/
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web
+
+      # 4. Publica o pacote no endereço do site.
+      - name: Publicar
+        id: publicacao
+        uses: actions/deploy-pages@v4
