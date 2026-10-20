@@ -13,7 +13,11 @@
 //      presença). Botão "+ novo jogador" (avisa nomes parecidos antes de
 //      cadastrar, para evitar duplicatas).
 //   3. Times: dividir os presentes em Time A e Time B com toque.
-//   4. Lances e 5. Fechamento: próximas etapas.
+//   4. Lances: "Gol" e "Gol contra" — escolher o autor e, se quiser, a
+//      assistência (no gol, só do mesmo time; no gol contra, só do time
+//      adversário). Placar ao vivo no topo e "desfazer último lance".
+//      O banco soma/subtrai os lances nas escalações automaticamente.
+//   5. Fechamento: próxima etapa.
 //
 // Usa as funções do banco (08_area_admin.sql): abrir_racha,
 // definir_status_dia e definir_equipe — cada uma grava tudo ou nada.
@@ -33,6 +37,10 @@ window.SecaoRacha = (() => {
     busca: "",
     gravando: new Set(),   // jogadores com gravação em andamento
     novoNome: "",          // texto digitado em "+ novo jogador"
+    numeros: new Map(),    // jogador id -> { gols, assistencias, gols_contra } na partida
+    lances: [],            // lances da partida, em ordem
+    lance: null,           // lance sendo montado: { tipo: 'gol'|'gol_contra', autorId }
+    ultimoAviso: "",       // confirmação do último lance gravado
   };
 
   // ---------------------------------------------------------------
@@ -112,12 +120,15 @@ window.SecaoRacha = (() => {
   // Lê presenças, cobranças e times do racha aberto e calcula o status de cada um.
   async function carregarDia() {
     const r = estado.racha;
-    const [pres, cob, esc_] = await Promise.all([
+    const [pres, cob, esc_, lan] = await Promise.all([
       banco.from("presencas").select("jogador_id, atuou_como_goleiro").eq("racha_id", r.id),
       banco.from("cobrancas").select("jogador_id").eq("racha_id", r.id),
-      banco.from("escalacoes").select("jogador_id, equipe").eq("partida_id", r.partida_id),
+      banco.from("escalacoes").select("jogador_id, equipe, gols, assistencias, gols_contra").eq("partida_id", r.partida_id),
+      banco.from("lances").select("id, tipo, autor_id, assistencia_id, criado_em").eq("partida_id", r.partida_id).order("id"),
     ]);
-    for (const resp of [pres, cob, esc_]) if (resp.error) throw resp.error;
+    for (const resp of [pres, cob, esc_, lan]) if (resp.error) throw resp.error;
+    estado.numeros = new Map(esc_.data.map((e) => [e.jogador_id, e]));
+    estado.lances = lan.data;
     estado.status = new Map();
     for (const c of cob.data) estado.status.set(c.jogador_id, "faltou");         // cobrança sem presença
     for (const p of pres.data) estado.status.set(p.jogador_id, p.atuou_como_goleiro ? "goleiro" : "presente");
@@ -160,6 +171,7 @@ window.SecaoRacha = (() => {
           <span class="racha-dia-data">${diaSemana(r.data_jogo)}, ${dataBR(r.data_jogo)}</span>
           <span class="racha-dia-sub">Valor: ${reais(r.valor_cobrado)} ·
             ${contagem.presente} presentes · ${contagem.goleiro} goleiro(s) · ${contagem.faltou} falta(s)</span>
+          ${estado.equipe.size ? `<span class="racha-dia-placar">Placar: Time A <b class="num">${placar().a}</b> × <b class="num">${placar().b}</b> Time B</span>` : ""}
         </div>
         <button class="link-botao" type="button" data-acao="trocar-data">Outra data</button>
       </div>
@@ -175,8 +187,9 @@ window.SecaoRacha = (() => {
     const alvo = estado.el.querySelector("#parte-racha");
     if (estado.parte === "lista") alvo.innerHTML = htmlLista();
     else if (estado.parte === "times") alvo.innerHTML = htmlTimes();
+    else if (estado.parte === "lances") alvo.innerHTML = htmlLances();
     else alvo.innerHTML = `<div class="cartao"><p class="vazio" style="padding:8px 0">
-      ${estado.parte === "lances" ? "Lances: em construção (etapa 3)." : "Fechamento financeiro: em construção (etapa 4)."}</p></div>`;
+      Fechamento financeiro: em construção (etapa 4).</p></div>`;
     if (estado.parte === "lista") {
       const busca = alvo.querySelector("#busca-dia");
       busca.addEventListener("input", () => {
@@ -303,6 +316,142 @@ window.SecaoRacha = (() => {
       <p class="legenda">Toque em A ou B para escolher o time. Toque de novo no time marcado para tirar do time.</p>`;
   }
 
+  // --- 4. Lances e placar
+  // Placar = gols do time + gols contra feitos pelo time adversário
+  // (mesma regra da visão v_placar_partidas).
+  function placar() {
+    let a = 0, b = 0;
+    for (const [id, n] of estado.numeros) {
+      const eq = estado.equipe.get(id);
+      if (eq === "A") { a += n.gols; b += n.gols_contra; }
+      if (eq === "B") { b += n.gols; a += n.gols_contra; }
+    }
+    return { a, b };
+  }
+
+  const nomeDe = (id) => estado.jogadores.get(id)?.nome ?? "?";
+  const outroTime = (eq) => (eq === "A" ? "B" : "A");
+
+  // Texto de um lance, ex.: "Gol de Fulano (Time A) · assistência de Beltrano".
+  function descreverLance(l) {
+    const eq = estado.equipe.get(l.autor_id);
+    const assist = l.assistencia_id ? ` · assistência de ${nomeDe(l.assistencia_id)}` : "";
+    return l.tipo === "gol"
+      ? `Gol de ${nomeDe(l.autor_id)} (Time ${eq})${assist}`
+      : `Gol contra de ${nomeDe(l.autor_id)} (Time ${eq}) — conta para o Time ${outroTime(eq)}${assist}`;
+  }
+
+  // Jogadores escalados num time, em ordem alfabética.
+  function doTime(eq) {
+    return [...estado.equipe.entries()].filter(([, e]) => e === eq)
+      .map(([id]) => estado.jogadores.get(id)).filter(Boolean).sort(porNome);
+  }
+
+  function htmlLances() {
+    const { a, b } = placar();
+    const telao = `
+      <div class="telao telao-admin" aria-live="polite">
+        <div class="telao-placar">
+          <div class="telao-time"><span class="telao-rotulo">Time A</span><span class="telao-num num">${a}</span></div>
+          <span class="telao-x">×</span>
+          <div class="telao-time"><span class="telao-rotulo">Time B</span><span class="telao-num num">${b}</span></div>
+        </div>
+      </div>`;
+    if (!estado.racha.partida_id) {
+      return `<div class="cartao"><p class="vazio">Este racha não tem partida.</p></div>`;
+    }
+    if (!doTime("A").length || !doTime("B").length) {
+      return telao + `<div class="cartao"><p class="vazio" style="padding:8px 0">Monte os dois times (aba Times) antes de lançar gols.</p></div>`;
+    }
+    if (estado.lance) return telao + htmlMontarLance();
+
+    const historico = [...estado.lances].reverse().map((l) => `
+      <li class="lance-linha">
+        <span class="lance-hora">${new Date(l.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+        <span class="lance-icone" aria-hidden="true">${l.tipo === "gol" ? "⚽" : "↩︎"}</span>
+        <span>${esc(descreverLance(l))}</span>
+      </li>`).join("");
+    return `
+      ${telao}
+      ${estado.ultimoAviso ? `<p class="mensagem mensagem-aviso" style="margin-bottom:12px">✔ ${esc(estado.ultimoAviso)}</p>` : ""}
+      <div class="botoes-lance">
+        <button type="button" class="botao botao-gol" data-acao="novo-lance" data-tipo="gol">⚽ Gol</button>
+        <button type="button" class="botao botao-contra" data-acao="novo-lance" data-tipo="gol_contra">Gol contra</button>
+      </div>
+      <button type="button" class="botao botao-largo botao-secundario" data-acao="desfazer-lance"
+              ${estado.lances.length ? "" : "disabled"}>↶ Desfazer último lance</button>
+      <h3 class="secao-titulo">Lances (${estado.lances.length})</h3>
+      ${historico ? `<ul class="lista lista-lances">${historico}</ul>` : `<p class="vazio" style="padding:4px 0">Nenhum lance ainda.</p>`}`;
+  }
+
+  // Passo a passo do lance: 1) autor; 2) assistência (opcional).
+  function htmlMontarLance() {
+    const l = estado.lance;
+    const nomeTipo = l.tipo === "gol" ? "Gol" : "Gol contra";
+    const botaoJogador = (j, acao) => `
+      <button type="button" class="escolha-jogador" data-acao="${acao}" data-jogador="${j.id}">${esc(j.nome)}</button>`;
+    if (!l.autorId) {
+      const grupo = (eq) => `
+        <div class="escolha-time">
+          <h4>Time ${eq}</h4>
+          ${doTime(eq).map((j) => botaoJogador(j, "lance-autor")).join("")}
+        </div>`;
+      return `
+        <div class="cartao montar-lance">
+          <h3>${nomeTipo}: ${l.tipo === "gol" ? "quem marcou?" : "quem fez o gol contra?"}</h3>
+          <div class="escolha-times">${grupo("A")}${grupo("B")}</div>
+          <button type="button" class="link-botao" data-acao="cancelar-lance">Cancelar</button>
+        </div>`;
+    }
+    const eqAutor = estado.equipe.get(l.autorId);
+    // Gol: assistência do mesmo time. Gol contra: do time adversário.
+    const eqAssist = l.tipo === "gol" ? eqAutor : outroTime(eqAutor);
+    const opcoes = doTime(eqAssist).filter((j) => j.id !== l.autorId);
+    return `
+      <div class="cartao montar-lance">
+        <h3>${nomeTipo} de ${esc(nomeDe(l.autorId))} (Time ${eqAutor})</h3>
+        <p class="legenda" style="margin-top:0">Assistência de quem? ${l.tipo === "gol" ? `(só do Time ${eqAutor})` : `(só do Time ${eqAssist}, o adversário)`}</p>
+        <button type="button" class="botao botao-largo" data-acao="lance-assist" data-jogador="">Sem assistência</button>
+        <div class="escolha-time escolha-unica">${opcoes.map((j) => botaoJogador(j, "lance-assist")).join("")}</div>
+        <div class="montar-lance-rodape">
+          <button type="button" class="link-botao" data-acao="voltar-lance">Voltar</button>
+          <button type="button" class="link-botao" data-acao="cancelar-lance">Cancelar</button>
+        </div>
+      </div>`;
+  }
+
+  // Grava o lance montado. O banco valida times e soma nas escalações.
+  function gravarLance(assistenciaId) {
+    const l = estado.lance;
+    const registro = {
+      partida_id: estado.racha.partida_id,
+      tipo: l.tipo,
+      autor_id: l.autorId,
+      assistencia_id: assistenciaId || null,
+    };
+    gravar(
+      () => banco.from("lances").insert(registro).select("id").single(),
+      async () => {
+        estado.lance = null;
+        estado.ultimoAviso = descreverLance(registro) + " — registrado.";
+        await carregarDia();
+        desenhar();
+      });
+  }
+
+  function desfazerLance() {
+    const ultimo = estado.lances[estado.lances.length - 1];
+    if (!ultimo) return;
+    if (!confirm(`Desfazer o último lance?\n\n${descreverLance(ultimo)}`)) return;
+    gravar(
+      () => banco.rpc("desfazer_ultimo_lance", { p_partida: estado.racha.partida_id }),
+      async () => {
+        estado.ultimoAviso = `Desfeito: ${descreverLance(ultimo)}.`;
+        await carregarDia();
+        desenhar();
+      });
+  }
+
   // ---------------------------------------------------------------
   // Ações (cada uma grava na hora)
   // ---------------------------------------------------------------
@@ -404,12 +553,18 @@ window.SecaoRacha = (() => {
   function aoTocar(evento) {
     const b = evento.target.closest("button");
     if (!b || b.disabled) return;
-    if (b.dataset.parte) { estado.parte = b.dataset.parte; desenhar(); return; }
+    if (b.dataset.parte) { estado.parte = b.dataset.parte; estado.lance = null; desenhar(); return; }
     if (b.dataset.status) { definirStatus(Number(b.dataset.jogador), b.dataset.status); return; }
     if (b.dataset.equipe) { definirEquipe(Number(b.dataset.jogador), b.dataset.equipe); return; }
     if (b.dataset.acao === "trocar-data") { estado.racha = null; desenharAbertura(); return; }
     if (b.dataset.acao === "usar-existente") { usarExistente(Number(b.dataset.jogador)); return; }
     if (b.dataset.acao === "cadastrar-novo") { cadastrarNovo(); return; }
+    if (b.dataset.acao === "novo-lance") { estado.lance = { tipo: b.dataset.tipo, autorId: null }; estado.ultimoAviso = ""; desenharParte(); return; }
+    if (b.dataset.acao === "lance-autor") { estado.lance.autorId = Number(b.dataset.jogador); desenharParte(); return; }
+    if (b.dataset.acao === "lance-assist") { gravarLance(b.dataset.jogador ? Number(b.dataset.jogador) : null); return; }
+    if (b.dataset.acao === "voltar-lance") { estado.lance.autorId = null; desenharParte(); return; }
+    if (b.dataset.acao === "cancelar-lance") { estado.lance = null; desenharParte(); return; }
+    if (b.dataset.acao === "desfazer-lance") { desfazerLance(); return; }
   }
 
   // ---------------------------------------------------------------

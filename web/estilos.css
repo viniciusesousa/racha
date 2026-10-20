@@ -1309,3 +1309,43 @@ button.aba {
 }
 .placar-times b { display: block; color: var(--texto); font-size: 1.8rem; line-height: 1.1; }
 .contagem-time { margin-left: 4px; color: var(--texto); }
+
+/* =====================================================================
+   ADMIN · LANCES E PLACAR AO VIVO
+   ===================================================================== */
+.racha-dia-placar { display: block; margin-top: 2px; font-weight: 600; font-size: 0.9rem; }
+.racha-dia-placar b { font-size: 1.15rem; }
+.telao-admin { margin-bottom: 12px; padding: 10px 16px; }
+.telao-admin .telao-placar { margin-top: 0; }
+.telao-admin .telao-num { font-size: 3.4rem; }
+
+.botoes-lance { display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; margin-bottom: 8px; }
+.botoes-lance .botao { min-height: 64px; font-size: 1.2rem; border-radius: var(--raio); }
+.botao-contra { background: var(--cartao); color: var(--texto); border: 2px solid var(--borda); }
+.botao-secundario:disabled { opacity: 0.5; cursor: default; }
+
+/* Passo a passo do lance */
+.montar-lance h3 { margin: 0 0 10px; font-family: var(--fonte-numero); font-size: 1.4rem; }
+.escolha-times { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.escolha-time { display: grid; gap: 6px; align-content: start; }
+.escolha-time h4 { margin: 0; color: var(--texto-suave); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.escolha-unica { margin-top: 8px; grid-template-columns: 1fr 1fr; }
+.escolha-jogador {
+  min-height: 48px;
+  padding: 8px 10px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--fundo);
+  color: var(--texto);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.escolha-jogador:active { background: var(--principal-suave); }
+.montar-lance-rodape { display: flex; justify-content: space-between; }
+
+/* Histórico de lances */
+.lance-linha { display: flex; align-items: baseline; gap: 8px; padding: 10px 12px; font-size: 0.9rem; }
+.lance-hora { flex: none; color: var(--texto-suave); font-variant-numeric: tabular-nums; font-size: 0.8rem; }
+.lance-icone { flex: none; }
