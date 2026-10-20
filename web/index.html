@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <!-- Faz a página se ajustar à largura do celular -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#15803d">
+  <title>Racha de Quinta</title>
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+
+  <!-- Cabeçalho fixo no topo, com o título da tela atual -->
+  <header class="topo">
+    <button class="topo-voltar" id="botao-voltar" type="button" aria-label="Voltar" hidden>
+      <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+        <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+    <h1 id="titulo-tela">Rankings</h1>
+  </header>
+
+  <!-- Área onde o app.js desenha o conteúdo de cada tela -->
+  <main id="conteudo" class="conteudo" aria-live="polite">
+    <p class="carregando">Carregando…</p>
+  </main>
+
+  <!-- Barra de abas na parte de baixo da tela -->
+  <nav class="abas" aria-label="Navegação principal">
+    <a class="aba" href="#rankings" data-aba="rankings">
+      <!-- Ícone de troféu -->
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8 20h8M10 17h4"
+              fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Rankings</span>
+    </a>
+    <a class="aba" href="#rachas" data-aba="rachas">
+      <!-- Ícone de calendário -->
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="4" y="5" width="16" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M4 10h16M9 3v4M15 3v4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      <span>Rachas</span>
+    </a>
+    <a class="aba" href="#jogadores" data-aba="jogadores">
+      <!-- Ícone de pessoas -->
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+        <path d="M3 19c.6-3.2 3-5 6-5s5.4 1.8 6 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M15.5 5.2a3 3 0 0 1 0 5.6M17.5 14.3c1.8.6 3 2.2 3.5 4.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      <span>Jogadores</span>
+    </a>
+  </nav>
+
+  <!-- Biblioteca oficial do Supabase, carregada direto da internet (CDN), sem instalação -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <!-- Endereço e chave pública do banco -->
+  <script src="config.js"></script>
+  <!-- Lógica das telas -->
+  <script src="app.js"></script>
+</body>
+</html>
