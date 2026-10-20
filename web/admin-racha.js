@@ -17,7 +17,11 @@
 //      assistência (no gol, só do mesmo time; no gol contra, só do time
 //      adversário). Placar ao vivo no topo e "desfazer último lance".
 //      O banco soma/subtrai os lances nas escalações automaticamente.
-//   5. Fechamento: próxima etapa.
+//   5. Fechamento financeiro: quem tem cobrança no dia, com o saldo
+//      devedor ACUMULADO de cada um; botão "Pagou" com forma obrigatória
+//      (Pix / Dinheiro / Cartão) e valor editável (para quitar dívidas
+//      antigas); resumo do dia (cobrado, recebido por forma, quem ficou
+//      devendo). "Não informado" não aparece aqui: é só para dados antigos.
 //
 // Usa as funções do banco (08_area_admin.sql): abrir_racha,
 // definir_status_dia e definir_equipe — cada uma grava tudo ou nada.
@@ -41,6 +45,8 @@ window.SecaoRacha = (() => {
     lances: [],            // lances da partida, em ordem
     lance: null,           // lance sendo montado: { tipo: 'gol'|'gol_contra', autorId }
     ultimoAviso: "",       // confirmação do último lance gravado
+    fin: null,             // financeiro do dia: { cobrancas, saldos, pagamentos }
+    pagando: null,         // jogador com o formulário "Pagou" aberto: { id, forma, valor }
   };
 
   // ---------------------------------------------------------------
@@ -188,8 +194,7 @@ window.SecaoRacha = (() => {
     if (estado.parte === "lista") alvo.innerHTML = htmlLista();
     else if (estado.parte === "times") alvo.innerHTML = htmlTimes();
     else if (estado.parte === "lances") alvo.innerHTML = htmlLances();
-    else alvo.innerHTML = `<div class="cartao"><p class="vazio" style="padding:8px 0">
-      Fechamento financeiro: em construção (etapa 4).</p></div>`;
+    else alvo.innerHTML = estado.fin ? htmlFechamento() : `<p class="vazio">Carregando…</p>`;
     if (estado.parte === "lista") {
       const busca = alvo.querySelector("#busca-dia");
       busca.addEventListener("input", () => {
@@ -452,6 +457,159 @@ window.SecaoRacha = (() => {
       });
   }
 
+  // --- 5. Fechamento financeiro
+  const FORMAS = [["pix", "Pix"], ["dinheiro", "Dinheiro"], ["cartao", "Cartão"]];
+  const NOME_FORMA = { pix: "Pix", dinheiro: "Dinheiro", cartao: "Cartão", nao_informado: "Não informado" };
+
+  // Busca as cobranças do racha, o saldo acumulado de quem foi cobrado e
+  // os pagamentos registrados na data do racha.
+  async function carregarFinanceiro() {
+    const r = estado.racha;
+    const cob = await banco.from("cobrancas").select("jogador_id, valor").eq("racha_id", r.id);
+    if (cob.error) throw cob.error;
+    const ids = cob.data.map((c) => c.jogador_id);
+    const [sal, pag] = await Promise.all([
+      ids.length ? banco.from("v_saldos_jogadores").select("jogador_id, saldo").in("jogador_id", ids)
+                 : Promise.resolve({ data: [], error: null }),
+      banco.from("pagamentos").select("id, jogador_id, valor, forma, criado_em")
+        .eq("data_pagamento", r.data_jogo).order("id"),
+    ]);
+    if (sal.error) throw sal.error;
+    if (pag.error) throw pag.error;
+    estado.fin = {
+      cobrancas: new Map(cob.data.map((c) => [c.jogador_id, Number(c.valor)])),
+      saldos: new Map(sal.data.map((x) => [x.jogador_id, Number(x.saldo)])),
+      pagamentos: pag.data.map((x) => ({ ...x, valor: Number(x.valor) })),
+    };
+  }
+
+  function htmlFechamento() {
+    const fin = estado.fin;
+    if (!fin.cobrancas.size) {
+      return `<div class="cartao"><p class="vazio" style="padding:8px 0">Ninguém tem cobrança neste racha ainda.
+        Marque os presentes (e quem faltou de última hora) na Lista.</p></div>`;
+    }
+    // --- Resumo do dia
+    const totalCobrado = [...fin.cobrancas.values()].reduce((a, v) => a + v, 0);
+    const porForma = {};
+    for (const pg of fin.pagamentos) porForma[pg.forma] = (porForma[pg.forma] || 0) + pg.valor;
+    const totalRecebido = Object.values(porForma).reduce((a, v) => a + v, 0);
+    const devendo = [...fin.cobrancas.keys()]
+      .filter((id) => (fin.saldos.get(id) ?? 0) > 0)
+      .map((id) => ({ id, nome: nomeDe(id), saldo: fin.saldos.get(id) }))
+      .sort((a, b) => b.saldo - a.saldo || a.nome.localeCompare(b.nome, "pt-BR"));
+    const resumo = `
+      <div class="cartao resumo-dia">
+        <h3 class="secao-titulo" style="margin-top:0">Resumo do dia</h3>
+        <div class="resumo-numeros">
+          <div><span>Cobrado</span><b class="num">${reais(totalCobrado)}</b><small>${fin.cobrancas.size} jogador(es)</small></div>
+          <div><span>Recebido</span><b class="num">${reais(totalRecebido)}</b><small>${fin.pagamentos.length} pagamento(s)</small></div>
+        </div>
+        <ul class="resumo-formas">
+          ${[...FORMAS, ["nao_informado", "Não informado"]].filter(([f]) => f !== "nao_informado" || porForma[f])
+            .map(([f, nome]) => `<li><span>${nome}</span><b>${reais(porForma[f] || 0)}</b></li>`).join("")}
+        </ul>
+        <p class="resumo-devendo"><b>Ficaram devendo (${devendo.length}):</b>
+          ${devendo.length ? devendo.map((d) => `${esc(d.nome)} (${reais(d.saldo)})`).join(", ") : "ninguém 🎉"}</p>
+      </div>`;
+
+    // --- Lista de quem tem cobrança no dia
+    const linhas = [...fin.cobrancas.keys()]
+      .map((id) => ({ id, nome: nomeDe(id) }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))
+      .map(({ id, nome }) => {
+        const saldo = fin.saldos.get(id) ?? 0;
+        const situacao = saldo > 0 ? `<span class="saldo saldo-deve">deve ${reais(saldo)}</span>`
+          : saldo < 0 ? `<span class="saldo saldo-credito">crédito ${reais(-saldo)}</span>`
+          : `<span class="saldo saldo-ok">em dia</span>`;
+        const doDia = fin.pagamentos.filter((pg) => pg.jogador_id === id);
+        const status = estado.status.get(id) === "faltou" ? ' <span class="selo selo-falta">faltou</span>' : "";
+        return `
+          <li class="fin-linha">
+            <div class="fin-topo">
+              <span class="dia-nome">${esc(nome)}${status}</span>
+              ${situacao}
+            </div>
+            ${doDia.length ? `<div class="fin-pagos">${doDia.map((pg) => `
+              <span class="pago-chip">${NOME_FORMA[pg.forma]} ${reais(pg.valor)}
+                <button type="button" data-acao="excluir-pagamento" data-pagamento="${pg.id}" aria-label="Excluir pagamento de ${esc(nome)}">✕</button>
+              </span>`).join("")}</div>` : ""}
+            ${estado.pagando?.id === id ? htmlFormPagou(id) : `
+              <button type="button" class="botao botao-pagou" data-acao="abrir-pagou" data-jogador="${id}">Pagou</button>`}
+          </li>`;
+      }).join("");
+    return `
+      ${resumo}
+      <ul class="lista lista-fin">${linhas}</ul>
+      <p class="legenda">Saldo acumulado = tudo o que já foi cobrado − tudo o que já foi pago (inclui rachas
+        anteriores). O valor do "Pagou" pode ser maior que ${reais(estado.racha.valor_cobrado)} para quitar dívidas antigas.</p>`;
+  }
+
+  function htmlFormPagou(id) {
+    const pg = estado.pagando;
+    return `
+      <div class="form-pagou">
+        <span class="form-pagou-rotulo">Forma de pagamento (obrigatório)</span>
+        <div class="status-botoes formas" role="group" aria-label="Forma de pagamento">
+          ${FORMAS.map(([f, nome]) => `
+            <button type="button" class="status ${pg.forma === f ? "ativa status-presente" : ""}" data-acao="forma" data-forma="${f}"
+                    aria-pressed="${pg.forma === f}">${nome}</button>`).join("")}
+        </div>
+        <label class="campo"><span>Valor (R$)</span>
+          <input type="number" id="pagou-valor" min="0.01" step="0.5" inputmode="decimal" value="${pg.valor}"></label>
+        <div class="form-pagou-botoes">
+          <button type="button" class="link-botao" data-acao="cancelar-pagou">Cancelar</button>
+          <button type="button" class="botao" data-acao="confirmar-pagou" ${pg.forma ? "" : "disabled"}>Confirmar pagamento</button>
+        </div>
+      </div>`;
+  }
+
+  function abrirPagou(id) {
+    // Valor sugerido: o do racha (editável).
+    estado.pagando = { id, forma: null, valor: Number(estado.racha.valor_cobrado) || 15 };
+    desenharParte();
+    estado.el.querySelector("#pagou-valor")?.addEventListener("input", (e) => { estado.pagando.valor = e.target.value; });
+  }
+
+  function escolherForma(forma) {
+    const valorDigitado = estado.el.querySelector("#pagou-valor")?.value;
+    if (valorDigitado) estado.pagando.valor = valorDigitado;
+    estado.pagando.forma = forma;
+    desenharParte();
+    estado.el.querySelector("#pagou-valor")?.addEventListener("input", (e) => { estado.pagando.valor = e.target.value; });
+  }
+
+  function confirmarPagou() {
+    const pg = estado.pagando;
+    const valor = Number(String(estado.el.querySelector("#pagou-valor")?.value ?? pg.valor).replace(",", "."));
+    if (!pg.forma) return mostrarFalha("Escolha a forma de pagamento: Pix, Dinheiro ou Cartão.");
+    if (!(valor > 0)) return mostrarFalha("Informe um valor maior que zero.");
+    const registro = {
+      jogador_id: pg.id, valor, forma: pg.forma,
+      data_pagamento: estado.racha.data_jogo,
+      observacao: `Racha de ${dataBR(estado.racha.data_jogo)}`,
+    };
+    gravar(
+      () => banco.from("pagamentos").insert(registro).select("id").single(),
+      async () => { estado.pagando = null; await carregarFinanceiro(); desenharParte(); });
+  }
+
+  function excluirPagamento(pagamentoId) {
+    const pg = estado.fin.pagamentos.find((x) => x.id === pagamentoId);
+    if (!pg) return;
+    if (!confirm(`Excluir o pagamento de ${nomeDe(pg.jogador_id)}: ${NOME_FORMA[pg.forma]} ${reais(pg.valor)}?`)) return;
+    gravar(
+      () => banco.from("pagamentos").delete().eq("id", pagamentoId),
+      async () => { await carregarFinanceiro(); desenharParte(); });
+  }
+
+  async function abrirFechamento() {
+    estado.fin = null;
+    estado.pagando = null;
+    desenhar();
+    await gravar(() => carregarFinanceiro(), () => desenharParte());
+  }
+
   // ---------------------------------------------------------------
   // Ações (cada uma grava na hora)
   // ---------------------------------------------------------------
@@ -553,7 +711,11 @@ window.SecaoRacha = (() => {
   function aoTocar(evento) {
     const b = evento.target.closest("button");
     if (!b || b.disabled) return;
-    if (b.dataset.parte) { estado.parte = b.dataset.parte; estado.lance = null; desenhar(); return; }
+    if (b.dataset.parte) {
+      estado.parte = b.dataset.parte; estado.lance = null;
+      if (estado.parte === "fechamento") abrirFechamento(); else desenhar();
+      return;
+    }
     if (b.dataset.status) { definirStatus(Number(b.dataset.jogador), b.dataset.status); return; }
     if (b.dataset.equipe) { definirEquipe(Number(b.dataset.jogador), b.dataset.equipe); return; }
     if (b.dataset.acao === "trocar-data") { estado.racha = null; desenharAbertura(); return; }
@@ -565,6 +727,11 @@ window.SecaoRacha = (() => {
     if (b.dataset.acao === "voltar-lance") { estado.lance.autorId = null; desenharParte(); return; }
     if (b.dataset.acao === "cancelar-lance") { estado.lance = null; desenharParte(); return; }
     if (b.dataset.acao === "desfazer-lance") { desfazerLance(); return; }
+    if (b.dataset.acao === "abrir-pagou") { abrirPagou(Number(b.dataset.jogador)); return; }
+    if (b.dataset.acao === "forma") { escolherForma(b.dataset.forma); return; }
+    if (b.dataset.acao === "cancelar-pagou") { estado.pagando = null; desenharParte(); return; }
+    if (b.dataset.acao === "confirmar-pagou") { confirmarPagou(); return; }
+    if (b.dataset.acao === "excluir-pagamento") { excluirPagamento(Number(b.dataset.pagamento)); return; }
   }
 
   // ---------------------------------------------------------------

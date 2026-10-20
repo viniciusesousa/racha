@@ -1349,3 +1349,46 @@ button.aba {
 .lance-linha { display: flex; align-items: baseline; gap: 8px; padding: 10px 12px; font-size: 0.9rem; }
 .lance-hora { flex: none; color: var(--texto-suave); font-variant-numeric: tabular-nums; font-size: 0.8rem; }
 .lance-icone { flex: none; }
+
+/* =====================================================================
+   ADMIN · FECHAMENTO FINANCEIRO
+   ===================================================================== */
+.resumo-numeros { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+.resumo-numeros div { padding: 10px; border-radius: 10px; background: var(--fundo); text-align: center; }
+.resumo-numeros span, .resumo-numeros small { display: block; color: var(--texto-suave); font-size: 0.78rem; font-weight: 600; }
+.resumo-numeros b { display: block; font-size: 1.6rem; line-height: 1.15; }
+.resumo-formas { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 4px; }
+.resumo-formas li { display: flex; justify-content: space-between; padding: 4px 2px; border-bottom: 1px dashed var(--borda); }
+.resumo-devendo { margin: 0; font-size: 0.9rem; }
+
+.fin-linha { display: grid; gap: 8px; padding: 12px; }
+.fin-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.saldo { flex: none; padding: 3px 10px; border-radius: 999px; font-size: 0.8rem; font-weight: 700; }
+.saldo-deve { background: var(--derrota); color: var(--sobre-derrota); }               /* 6,6 : 1 */
+.saldo-credito { background: var(--principal-suave); color: var(--sobre-principal-suave); }
+.saldo-ok { background: var(--fundo); color: var(--texto-suave); border: 1px solid var(--borda); }
+.selo-falta { background: var(--aviso-fundo); color: var(--aviso); }
+.fin-pagos { display: flex; flex-wrap: wrap; gap: 6px; }
+.pago-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 10px;
+  border-radius: 999px;
+  background: var(--ouro);
+  color: var(--sobre-medalha);           /* 9,0 : 1 */
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.pago-chip button {
+  width: 24px; height: 24px;
+  border: 0; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.12);
+  color: inherit; font-size: 0.75rem; cursor: pointer;
+}
+.botao-pagou { justify-self: start; min-height: 40px; padding: 8px 22px; }
+.form-pagou { display: grid; gap: 10px; padding: 12px; border-radius: 10px; background: var(--fundo); }
+.form-pagou-rotulo { font-weight: 600; font-size: 0.9rem; }
+.formas { flex-wrap: wrap; }
+.formas .status { flex: 1; }
+.form-pagou-botoes { display: flex; justify-content: space-between; align-items: center; }
