@@ -143,9 +143,7 @@ a:focus-visible, button:focus-visible, input:focus-visible {
 .num,
 .linha-valor,
 .posicao,
-.placar,
-.placar-grande .numero,
-.numero-caixa b {
+.placar-grande .numero {
   font-family: var(--fonte-numero);
   font-variant-numeric: tabular-nums;
 }
@@ -745,28 +743,130 @@ a.linha:active { background: var(--principal-suave); }
 }
 .busca::placeholder { color: var(--texto-suave); }
 
-/* Ficha do jogador */
-.ficha-cabecalho h2 { margin: 0; font-size: 1.4rem; }
-.ficha-cabecalho p { margin: 4px 0 0; color: var(--texto-suave); }
+/* =====================================================================
+   FICHA DO JOGADOR
+   ===================================================================== */
+/* Cabeçalho: foto ou iniciais grandes, nome e posição */
+.ficha-topo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 16px;
+  text-align: center;
+}
+/* ".avatar.avatar-gigante" para valer sobre o tamanho padrão do avatar */
+.avatar.avatar-gigante {
+  width: 104px;
+  height: 104px;
+  font-size: 2.6rem;
+  box-shadow: 0 0 0 4px var(--cartao), 0 0 0 6px var(--borda);
+}
+.ficha-nome { margin: 4px 0 0; font-family: var(--fonte-numero); font-size: 2rem; font-weight: 700; line-height: 1.1; }
+.ficha-descricao { margin: 0; color: var(--texto-suave); }
+.ficha-topo .selo { margin-left: 0; }
 
-.grade-numeros {
+/* Os 3 números principais, em destaque */
+.numeros-principais {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
+  margin-bottom: 8px;
 }
-.numero-caixa {
-  padding: 12px 6px;
-  border-radius: 10px;
-  background: var(--fundo);
+.numero-principal {
+  padding: 14px 6px 12px;
+  border: 1px solid var(--borda);
+  border-radius: var(--raio);
+  background: var(--cartao);
   text-align: center;
 }
-.numero-caixa b {
-  display: block;
-  font-size: 2rem;
-  font-weight: 700;
-  line-height: 1.1;
+.numero-principal b { display: block; font-size: 3rem; font-weight: 800; line-height: 1; }
+.numero-principal span { color: var(--texto-suave); font-size: 0.8rem; font-weight: 600; }
+
+/* Os demais números, menores */
+.numeros-menores {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px 6px;
+  margin-bottom: 4px;
 }
-.numero-caixa span { color: var(--texto-suave); font-size: 0.78rem; font-weight: 600; }
+.numero-menor { text-align: center; }
+.numero-menor b { display: block; font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
+.numero-menor span { display: block; color: var(--texto-suave); font-size: 0.72rem; font-weight: 600; line-height: 1.2; }
+
+/* Últimos 5 resultados em bolinhas coloridas */
+.ultimos { display: flex; justify-content: center; gap: 10px; }
+.bolinha {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  font-family: var(--fonte-numero);
+  font-size: 1.3rem;
+  font-weight: 800;
+}
+.bolinha.res-V { background: var(--vitoria); color: var(--sobre-vitoria); }
+.bolinha.res-E { background: var(--empate); color: var(--sobre-empate); }
+.bolinha.res-D { background: var(--derrota); color: var(--sobre-derrota); }
+.ultimos + .legenda { text-align: center; }
+
+/* Gráfico de gols por mês (barras feitas com HTML e CSS) */
+.grafico {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  height: 150px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+.barra {
+  flex: 1 0 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.barra-valor { font-size: 1rem; font-weight: 700; line-height: 1; }
+.barra-trilho {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  width: 70%;
+  max-width: 28px;
+}
+.barra-cheia {
+  width: 100%;
+  min-height: 3px;            /* mês sem gols ainda mostra uma linha */
+  border-radius: 6px 6px 2px 2px;
+  background: var(--ativo);
+  transition: height 0.4s ease-out;
+}
+.barra-mes { color: var(--texto-suave); font-size: 0.72rem; font-weight: 600; }
+
+/* Medalhas (dourado com texto preto: 9,0 : 1) */
+.medalhas { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.medalha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--raio);
+  background: var(--ouro);
+  color: var(--sobre-medalha);
+}
+.medalha-icone {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+  font-size: 1.2rem;
+  flex: none;
+}
+.medalha b { display: block; font-size: 0.95rem; }
+.medalha-detalhe { display: block; font-size: 0.8rem; font-weight: 500; }
 
 /* Resultado de cada jogo na ficha */
 .res {

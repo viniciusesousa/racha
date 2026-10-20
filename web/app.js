@@ -45,7 +45,6 @@ const dados = {
 
 // Escalações já buscadas, para não perguntar de novo ao banco.
 const cacheEscalacoesRacha = new Map();    // racha id -> escalações
-const cacheEscalacoesJogador = new Map();  // jogador id -> escalações
 
 
 // ---------------------------------------------------------------------
@@ -278,19 +277,6 @@ async function carregarEscalacoesRacha(racha) {
   cacheEscalacoesRacha.set(racha.id, lista);
   return lista;
 }
-
-// Todas as escalações de um jogador.
-async function carregarEscalacoesJogador(jogadorId) {
-  if (cacheEscalacoesJogador.has(jogadorId)) return cacheEscalacoesJogador.get(jogadorId);
-  const lista = await consultar(
-    banco.from("escalacoes")
-      .select("partida_id, equipe, gols, assistencias, gols_contra")
-      .eq("jogador_id", jogadorId)
-  );
-  cacheEscalacoesJogador.set(jogadorId, lista);
-  return lista;
-}
-
 
 // =====================================================================
 // NÚMEROS POR PERÍODO (este ano, este mês...)
@@ -993,53 +979,167 @@ function telaJogadores() {
 // =====================================================================
 // TELA: FICHA DO JOGADOR
 // =====================================================================
+// Os TOTAIS (gols, assistências, jogos...) vêm das visões e já incluem os
+// ajustes manuais. O gráfico, os últimos resultados e as medalhas são
+// calculados jogo a jogo (v_participacoes), sem os ajustes.
+
+const NOMES_MESES_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun",
+  "jul", "ago", "set", "out", "nov", "dez"];
+
+// Líderes de gols e de assistências de cada mês (calculado uma vez só).
+// Devolve Map "2026-08" -> { gols: {valor, ids}, assistencias: {valor, ids} }.
+let cacheLideresMensais = null;
+function lideresMensais() {
+  if (cacheLideresMensais) return cacheLideresMensais;
+  const porMes = new Map();  // "2026-08" -> Map(jogador -> {gols, assistencias})
+  for (const p of dadosPeriodo.participacoes) {
+    const mes = p.data_jogo.slice(0, 7);
+    if (!porMes.has(mes)) porMes.set(mes, new Map());
+    const doMes = porMes.get(mes);
+    const j = doMes.get(p.jogador_id) ?? { jogador_id: p.jogador_id, gols: 0, assistencias: 0 };
+    j.gols += p.gols;
+    j.assistencias += p.assistencias;
+    doMes.set(p.jogador_id, j);
+  }
+  cacheLideresMensais = new Map([...porMes].map(([mes, doMes]) =>
+    [mes, { gols: lideres(doMes, "gols"), assistencias: lideres(doMes, "assistencias") }]));
+  return cacheLideresMensais;
+}
+
+// "2026-08" -> "agosto de 2026"
+function mesPorExtenso(anoMes) {
+  const [ano, mes] = anoMes.split("-").map(Number);
+  return `${NOMES_MESES[mes - 1]} de ${ano}`;
+}
+
+// Medalhas do jogador, calculadas a partir dos jogos.
+function medalhasDoJogador(id) {
+  const medalhas = [];
+  const mesAtual = hojeISO().slice(0, 7);
+  for (const [mes, lider] of [...lideresMensais()].sort((a, b) => b[0].localeCompare(a[0]))) {
+    const parcial = mes === mesAtual ? " (mês em andamento)" : "";
+    if (lider.gols.ids.includes(id)) {
+      medalhas.push({ icone: "⚽", texto: `Artilheiro de ${mesPorExtenso(mes)}${parcial}`,
+        detalhe: `${lider.gols.valor} ${lider.gols.valor === 1 ? "gol" : "gols"}${lider.gols.ids.length > 1 ? ", empatado" : ""}` });
+    }
+    if (lider.assistencias.ids.includes(id)) {
+      medalhas.push({ icone: "👟", texto: `Garçom de ${mesPorExtenso(mes)}${parcial}`,
+        detalhe: `${lider.assistencias.valor} ${lider.assistencias.valor === 1 ? "assistência" : "assistências"}${lider.assistencias.ids.length > 1 ? ", empatado" : ""}` });
+    }
+  }
+  // Recorde: a maior sequência de vitórias de todo o histórico.
+  const recorde = lideres(dados.sequencias, "melhor_sequencia");
+  if (recorde.ids.includes(id)) {
+    medalhas.unshift({ icone: "🔥", texto: "Recorde de sequência",
+      detalhe: `${recorde.valor} vitórias seguidas${recorde.ids.length > 1 ? ", empatado" : ""}` });
+  }
+  return medalhas;
+}
+
+// Gráfico de barras de gols por mês, feito só com HTML e CSS.
+// Vai do primeiro mês em que o jogador jogou até o mês atual (meses sem
+// gols aparecem com barra zerada).
+function graficoGolsPorMes(jogos) {
+  if (!jogos.length) return `<p class="vazio">Nenhum jogo registrado.</p>`;
+  const golsPorMes = new Map();
+  for (const j of jogos) {
+    const mes = j.data_jogo.slice(0, 7);
+    golsPorMes.set(mes, (golsPorMes.get(mes) ?? 0) + j.gols);
+  }
+  // Lista de meses contínua (sem buracos).
+  const primeiro = [...golsPorMes.keys()].sort()[0];
+  const ultimo = hojeISO().slice(0, 7);
+  const meses = [];
+  let [ano, mes] = primeiro.split("-").map(Number);
+  while (`${ano}-${String(mes).padStart(2, "0")}` <= ultimo) {
+    meses.push(`${ano}-${String(mes).padStart(2, "0")}`);
+    mes += 1;
+    if (mes > 12) { mes = 1; ano += 1; }
+  }
+  const maximo = Math.max(1, ...golsPorMes.values());
+  const barras = meses.map((m) => {
+    const gols = golsPorMes.get(m) ?? 0;
+    const altura = Math.round((gols / maximo) * 100);
+    const [a, mm] = m.split("-").map(Number);
+    return `
+      <div class="barra" role="listitem" aria-label="${NOMES_MESES[mm - 1]} de ${a}: ${gols} ${gols === 1 ? "gol" : "gols"}">
+        <span class="barra-valor num">${gols}</span>
+        <span class="barra-trilho"><span class="barra-cheia" style="height:${altura}%"></span></span>
+        <span class="barra-mes">${NOMES_MESES_CURTOS[mm - 1]}</span>
+      </div>`;
+  }).join("");
+  return `<div class="grafico" role="list" aria-label="Gols por mês">${barras}</div>`;
+}
 
 async function telaJogador(id) {
   const jogador = dados.jogadores.get(id);
   if (!jogador) return { titulo: "Jogador", html: `<p class="vazio">Jogador não encontrado.</p>` };
 
+  await carregarDadosPeriodo();
   const e = dados.estatisticas.get(id) ?? {};
   const s = dados.sequencias.get(id) ?? {};
-  const escalacoes = await carregarEscalacoesJogador(id);
 
-  // Caixinhas com os números.
-  const caixa = (valor, rotulo) =>
-    `<div class="numero-caixa"><b>${esc(valor ?? 0)}</b><span>${rotulo}</span></div>`;
-  const aproveitamento = e.aproveitamento === null || e.aproveitamento === undefined
-    ? "–" : `${formatarDecimal(e.aproveitamento)}%`;
+  // Jogos do jogador, do mais recente ao mais antigo.
+  const partidasPorId = new Map(dados.partidas.map((p) => [p.partida_id, p]));
+  const jogos = dadosPeriodo.participacoes
+    .filter((p) => p.jogador_id === id)
+    .sort((a, b) => b.data_jogo.localeCompare(a.data_jogo) || b.numero - a.numero);
 
+  // --- Cabeçalho ------------------------------------------------------
   const descricao = [
     jogador.apelido ? `“${esc(jogador.apelido)}”` : "",
     esc(jogador.posicao ?? ""),
   ].filter(Boolean).join(" · ");
 
-  // Lista dos rachas em que jogou, do mais recente ao mais antigo.
-  const partidasPorId = new Map(dados.partidas.map((p) => [p.partida_id, p]));
-  const jogos = escalacoes
-    .map((escalacao) => ({ ...escalacao, partida: partidasPorId.get(escalacao.partida_id) }))
-    .filter((j) => j.partida)
-    .sort((a, b) => b.partida.data_jogo.localeCompare(a.partida.data_jogo) ||
-                    b.partida.numero - a.partida.numero);
+  // --- Números: 3 principais em destaque e os demais menores ---------
+  const principal = (valor, rotulo) =>
+    `<div class="numero-principal"><b class="num">${esc(valor ?? 0)}</b><span>${rotulo}</span></div>`;
+  const menor = (valor, rotulo) =>
+    `<div class="numero-menor"><b class="num">${esc(valor ?? 0)}</b><span>${rotulo}</span></div>`;
+  const aproveitamento = e.aproveitamento === null || e.aproveitamento === undefined
+    ? "–" : `${formatarDecimal(e.aproveitamento)}%`;
 
+  // --- Últimos 5 resultados (só partidas com times) -------------------
+  const NOMES_RESULTADO = { V: "Vitória", E: "Empate", D: "Derrota" };
+  const ultimos = jogos.filter((j) => j.resultado).slice(0, 5).reverse();  // antigo -> recente
+  const bolinhas = ultimos.length
+    ? `<div class="ultimos" role="list" aria-label="Últimos resultados, do mais antigo ao mais recente">
+         ${ultimos.map((j) => `
+           <span class="bolinha res-${j.resultado}" role="listitem"
+                 title="${NOMES_RESULTADO[j.resultado]} em ${dataBR(j.data_jogo)}"
+                 aria-label="${NOMES_RESULTADO[j.resultado]} em ${dataBR(j.data_jogo)}">${j.resultado}</span>`).join("")}
+       </div>
+       <p class="legenda">Do mais antigo para o mais recente.</p>`
+    : `<p class="vazio">Ainda sem jogos com times.</p>`;
+
+  // --- Medalhas -------------------------------------------------------
+  const medalhas = medalhasDoJogador(id);
+  const listaMedalhas = medalhas.length
+    ? `<ul class="medalhas">${medalhas.map((m) => `
+        <li class="medalha">
+          <span class="medalha-icone" aria-hidden="true">${m.icone}</span>
+          <span><b>${esc(m.texto)}</b><span class="medalha-detalhe">${esc(m.detalhe)}</span></span>
+        </li>`).join("")}</ul>`
+    : `<p class="vazio">Nenhuma medalha ainda.</p>`;
+
+  // --- Lista dos rachas em que jogou ----------------------------------
   const itens = jogos.map((j) => {
-    const p = j.partida;
-    // Resultado do jogador: V, E ou D (sem times = "–").
-    let res = "sem", letra = "–";
-    if (p.tem_times && j.equipe) {
-      letra = p.resultado === "empate" ? "E" : p.resultado === j.equipe ? "V" : "D";
-      res = letra;
-    }
-    const placar = p.tem_times ? ` · A ${p.gols_a} x ${p.gols_b} B · time ${esc(j.equipe ?? "?")}` : " · sem times";
-    const gc = j.gols_contra > 0 ? `<span>GC <b>${j.gols_contra}</b></span>` : "";
+    const p = partidasPorId.get(j.partida_id);
+    if (!p) return "";
+    const res = j.resultado ?? "sem";
+    const letra = j.resultado ?? "–";
+    const placar = p.tem_times
+      ? `Time ${esc(j.equipe ?? "?")} · ${p.gols_a} × ${p.gols_b}`
+      : "Sem times";
     return `
       <li>
         <a class="linha" href="#racha/${p.racha_id}">
-          <span class="res res-${res}" title="${{ V: "Vitória", E: "Empate", D: "Derrota", sem: "Sem resultado" }[res]}">${letra}</span>
+          <span class="res res-${res}" title="${NOMES_RESULTADO[res] ?? "Sem resultado"}">${letra}</span>
           <span class="linha-principal">
             <span class="racha-data">${dataBR(p.data_jogo)}</span>
-            <span class="linha-sub">${esc(nomeOrigem(p.origem))}${placar}</span>
+            <span class="linha-sub">${placar}</span>
           </span>
-          <span class="numeros"><span>G <b>${j.gols}</b></span><span>A <b>${j.assistencias}</b></span>${gc}</span>
+          <span class="jogador-time-numeros">${numerosComIcones(j)}</span>
         </a>
       </li>`;
   }).join("");
@@ -1048,29 +1148,42 @@ async function telaJogador(id) {
     titulo: jogador.nome,
     voltar: "#jogadores",
     html: `
-      <div class="cartao ficha-cabecalho">
-        <h2>${esc(jogador.nome)}${selosJogador(jogador)}</h2>
-        ${descricao ? `<p>${descricao}</p>` : ""}
+      <section class="ficha-topo">
+        ${avatar(jogador, "avatar-gigante")}
+        <h2 class="ficha-nome">${esc(jogador.nome)}</h2>
+        ${descricao ? `<p class="ficha-descricao">${descricao}</p>` : ""}
+        ${jogador.tipo === "convidado" ? '<span class="selo selo-convidado">convidado</span>' : ""}
+        ${jogador.tipo === "goleiro" ? '<span class="selo selo-goleiro">goleiro</span>' : ""}
+      </section>
+
+      <div class="numeros-principais">
+        ${principal(e.gols, "Gols")}
+        ${principal(e.assistencias, "Assistências")}
+        ${principal(e.presencas, "Jogos")}
+      </div>
+      <div class="cartao numeros-menores">
+        ${menor(e.vitorias, "Vitórias")}
+        ${menor(e.empates, "Empates")}
+        ${menor(e.derrotas, "Derrotas")}
+        ${menor(aproveitamento, "Aproveit.")}
+        ${menor(s.sequencia_atual, "Sequência atual")}
+        ${menor(s.melhor_sequencia, "Melhor sequência")}
+        ${menor(e.gols_contra, "Gols contra")}
+      </div>
+      <p class="legenda">Totais com os ajustes manuais do histórico. Aproveitamento e sequências
+        consideram só partidas com times.</p>
+
+      <h2 class="secao-titulo">Últimos resultados</h2>
+      <div class="cartao">${bolinhas}</div>
+
+      <h2 class="secao-titulo">Gols por mês</h2>
+      <div class="cartao">
+        ${graficoGolsPorMes(jogos)}
+        <p class="legenda">Contados jogo a jogo, sem os ajustes manuais.</p>
       </div>
 
-      <h2 class="secao-titulo">Números</h2>
-      <div class="cartao">
-        <div class="grade-numeros">
-          ${caixa(e.presencas, "Jogos")}
-          ${caixa(e.gols, "Gols")}
-          ${caixa(e.assistencias, "Assistências")}
-          ${caixa(e.participacoes_em_gol, "Part. em gol")}
-          ${caixa(e.gols_contra, "Gols contra")}
-          ${caixa(e.vitorias, "Vitórias")}
-          ${caixa(e.empates, "Empates")}
-          ${caixa(e.derrotas, "Derrotas")}
-          ${caixa(aproveitamento, "Aproveitamento")}
-          ${caixa(s.sequencia_atual, "Sequência atual")}
-          ${caixa(s.melhor_sequencia, "Melhor sequência")}
-        </div>
-        <p class="legenda">Os totais incluem ajustes manuais do histórico, por isso podem
-          ser maiores que a soma dos jogos abaixo. Aproveitamento considera só partidas com times.</p>
-      </div>
+      <h2 class="secao-titulo">Medalhas</h2>
+      ${listaMedalhas}
 
       <h2 class="secao-titulo">Rachas em que jogou (${jogos.length})</h2>
       ${itens ? `<ul class="lista">${itens}</ul>` : `<p class="vazio">Nenhum jogo registrado.</p>`}`,
