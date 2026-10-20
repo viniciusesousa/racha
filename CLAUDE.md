@@ -26,6 +26,8 @@ App web para controlar o racha semanal de futebol (quintas-feiras), substituindo
 - Repositório público: https://github.com/viniciusesousa/racha (branch `main`).
 - **Cada push na branch `main` publica o site automaticamente** pelo workflow `.github/workflows/publicar-site.yml` (GitHub Actions), que envia só a pasta `web/`. O andamento aparece na aba "Actions" do repositório (leva 1 a 2 minutos).
 - O site fica numa subpasta (`/racha/`): todos os caminhos em `web/` devem ser relativos (sem `/` no início).
+- **Escolha automática do banco** (`web/config.js`): página aberta em `localhost`, `127.0.0.1`, `[::1]` ou `*.localhost` usa o banco de teste (racha-teste) e mostra a faixa "AMBIENTE DE TESTE"; qualquer outro endereço usa o banco real. As duas chaves no `config.js` são públicas (publishable).
+- Área do admin: `web/admin.html` (+ `admin.js`), sem link na área pública e com `noindex`. Login por e-mail e senha (Supabase Auth); quem não é admin (`eh_admin()` falso) vê "acesso não autorizado" e nada é carregado.
 - Antes de enviar ao GitHub, pedir confirmação ao usuário. Nunca enviar dados reais (`banco/dados/`, planilhas, relatórios) nem chaves secretas; só a chave `sb_publishable_` pode ficar no código.
 - Commits usam o e-mail privado ("noreply") do GitHub, já configurado só neste repositório (`git config user.email`), para o e-mail pessoal não ficar público. Não escrever e-mails em arquivos versionados.
 - **Ao publicar qualquer mudança na pasta `web/`, aumente `VERSAO` em `web/sw.js`** (v1 -> v2...). Assim o celular troca o cache e apaga o antigo. Arquivos novos da pasta `web/` que devam abrir sem internet entram na lista `ARQUIVOS_DO_APP` do `sw.js`. Os dados do Supabase nunca passam pelo cache.

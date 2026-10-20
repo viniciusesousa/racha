@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!-- Área restrita: buscadores não devem listar esta página -->
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#6d1f2f" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#3d1119" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <title>Admin · Racha de Quinta</title>
+  <link rel="icon" type="image/png" href="img/escudo-256.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body class="pagina-admin">
+
+  <!-- Cabeçalho -->
+  <header class="topo">
+    <div class="topo-conteudo">
+      <img class="topo-escudo" src="img/escudo-256.png" alt="">
+      <h1 id="titulo-tela">Admin</h1>
+      <button class="topo-sair" id="botao-sair" type="button" hidden>Sair</button>
+    </div>
+  </header>
+
+  <main class="conteudo" id="conteudo" aria-live="polite">
+
+    <!-- Enquanto confere se já existe sessão -->
+    <section id="tela-carregando" class="tela">
+      <p class="vazio">Carregando…</p>
+    </section>
+
+    <!-- Login -->
+    <section id="tela-login" class="tela" hidden>
+      <div class="cartao login">
+        <img class="login-escudo" src="img/escudo-256.png" alt="Escudo do Racha de Quinta">
+        <h2>Área do administrador</h2>
+        <form id="form-login" novalidate>
+          <label class="campo">
+            <span>E-mail</span>
+            <input type="email" id="login-email" autocomplete="username" inputmode="email" required>
+          </label>
+          <label class="campo">
+            <span>Senha</span>
+            <input type="password" id="login-senha" autocomplete="current-password" required>
+          </label>
+          <p class="mensagem" id="login-mensagem" role="alert" hidden></p>
+          <button class="botao botao-largo" type="submit" id="login-botao">Entrar</button>
+        </form>
+        <button class="link-botao" type="button" id="botao-esqueci">Esqueci a senha</button>
+      </div>
+    </section>
+
+    <!-- Nova senha (depois de abrir o link de recuperação recebido por e-mail) -->
+    <section id="tela-nova-senha" class="tela" hidden>
+      <div class="cartao login">
+        <h2>Criar nova senha</h2>
+        <form id="form-nova-senha" novalidate>
+          <label class="campo">
+            <span>Nova senha (mínimo 8 caracteres)</span>
+            <input type="password" id="nova-senha" autocomplete="new-password" minlength="8" required>
+          </label>
+          <label class="campo">
+            <span>Repita a nova senha</span>
+            <input type="password" id="nova-senha-2" autocomplete="new-password" minlength="8" required>
+          </label>
+          <p class="mensagem" id="nova-senha-mensagem" role="alert" hidden></p>
+          <button class="botao botao-largo" type="submit">Salvar nova senha</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Usuário logado, mas que não é administrador -->
+    <section id="tela-nao-autorizado" class="tela" hidden>
+      <div class="cartao login">
+        <h2>Acesso não autorizado</h2>
+        <p>Este usuário não é administrador do racha. Nenhum dado foi carregado.</p>
+        <button class="botao botao-largo" type="button" id="botao-sair-nao-autorizado">Sair</button>
+      </div>
+    </section>
+
+    <!-- Painel do administrador (só aparece para admin) -->
+    <section id="tela-painel" class="tela" hidden>
+      <p class="admin-usuario">Conectado como <b id="admin-email"></b></p>
+      <div id="painel-conteudo"></div>
+    </section>
+  </main>
+
+  <!-- Abas do admin (só aparecem para admin) -->
+  <nav class="abas" id="abas-admin" aria-label="Seções do admin" hidden>
+    <div class="abas-conteudo">
+      <button class="aba" type="button" data-secao="racha">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5l3.2 2.3-1.2 3.7h-4l-1.2-3.7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+        <span>Racha</span>
+      </button>
+      <button class="aba" type="button" data-secao="devedores">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6" width="17" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.6" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+        <span>Devedores</span>
+      </button>
+      <button class="aba" type="button" data-secao="caixa">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16v11H4zM7 8V5h10v3M9 13h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Caixa</span>
+      </button>
+      <button class="aba" type="button" data-secao="jogadores">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M3 19c.6-3.2 3-5 6-5s5.4 1.8 6 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M18 8v6M15 11h6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span>Jogadores</span>
+      </button>
+      <button class="aba" type="button" data-secao="config">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        <span>Ajustes</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Biblioteca do Supabase (CDN), configuração (escolhe o banco) e lógica do admin -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

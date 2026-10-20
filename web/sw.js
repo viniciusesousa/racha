@@ -13,13 +13,17 @@
 //      Ao publicar uma versão nova do app, AUMENTE o número em VERSAO
 //      (v1 -> v2). Quando o celular baixar o sw.js novo, ele cria o cache
 //      novo e APAGA AUTOMATICAMENTE os caches das versões antigas.
-//   3. Mesmo sem trocar a versão, cada arquivo é atualizado "por trás":
-//      o app abre com a cópia guardada e já baixa a mais nova para a
-//      próxima vez (estratégia "usa o guardado e atualiza em seguida").
+//   3. Arquivos do PRÓPRIO APP (HTML, CSS, JavaScript, manifest): com
+//      internet, sempre busca a versão mais nova no servidor (e atualiza a
+//      cópia); só usa a cópia guardada quando está sem internet. Assim uma
+//      publicação nova vale na hora e nunca se mistura arquivo novo com
+//      arquivo velho (ex.: config.js antigo apontando para outro banco).
+//   4. Imagens, ícones, fontes e a biblioteca do CDN mudam pouco: abrem
+//      da cópia guardada (rápido) e são atualizados "por trás".
 // =====================================================================
 
 // >>> Aumente este número a cada publicação de mudanças na pasta web/ <<<
-const VERSAO = "v2";
+const VERSAO = "v3";
 const NOME_CACHE = `racha-estatico-${VERSAO}`;
 
 // Arquivos do próprio app guardados já na instalação.
@@ -91,9 +95,23 @@ self.addEventListener("fetch", (evento) => {
   // index.html?v=2 e index.html usam a mesma cópia (evita cópias repetidas).
   const chave = doProprioApp ? url.origin + url.pathname : pedido;
 
-  // REGRA 3: usa a cópia guardada (se houver) e atualiza o cache em seguida.
+  // É código/página do app? (HTML, CSS, JS, manifest ou a raiz "/racha/")
+  const codigoDoApp = doProprioApp && /(\/|\.html|\.css|\.js|\.json)$/.test(url.pathname);
+
   evento.respondWith(
     caches.open(NOME_CACHE).then(async (cache) => {
+      if (codigoDoApp) {
+        // REGRA 3: primeiro a rede ("no-cache" = conferir com o servidor);
+        // sem internet, a cópia guardada.
+        try {
+          const resposta = await fetch(pedido, { cache: "no-cache" });
+          if (resposta.ok) cache.put(chave, resposta.clone());
+          return resposta;
+        } catch {
+          return (await cache.match(chave)) || Response.error();
+        }
+      }
+      // REGRA 4: usa a cópia guardada (se houver) e atualiza em seguida.
       const guardado = await cache.match(chave);
       const daRede = fetch(pedido)
         .then((resposta) => {

@@ -137,11 +137,10 @@ function nomeOrigem(origem) {
   return { mocha: "Mocha", recuperado: "Recuperado", app: "App" }[origem] ?? origem;
 }
 
-// Selos ao lado do nome: convidado, goleiro, inativo.
+// Selos ao lado do nome: goleiro, inativo. (Não existe mais "convidado".)
 function selosJogador(jogador) {
   if (!jogador) return "";
   let html = "";
-  if (jogador.tipo === "convidado") html += `<span class="selo selo-convidado">convidado</span>`;
   if (jogador.tipo === "goleiro") html += `<span class="selo selo-goleiro">goleiro</span>`;
   if (jogador.ativo === false) html += `<span class="selo selo-origem">inativo</span>`;
   return html;
@@ -690,7 +689,6 @@ async function telaRankings(idCategoria, idPeriodo, idModo) {
       <a class="podio-item podio-lugar-${i + 1}" href="#jogador/${l.item.jogador_id}">
         ${avatar(jogador, i === 0 ? "avatar-grande" : "avatar-medio")}
         <span class="podio-nome">${esc(jogador?.nome)}</span>
-        ${jogador?.tipo === "convidado" ? '<span class="selo selo-convidado">convidado</span>' : ""}
         <span class="podio-valor num">${esc(textoValor(l))}</span>
         <span class="podio-unidade">${esc(unidade)}</span>
         <span class="podio-base podio-base-${Math.min(l.posicao, 3)}"><b class="num">${l.posicao}º</b></span>
@@ -1162,7 +1160,6 @@ async function telaJogador(id) {
         ${avatar(jogador, "avatar-gigante")}
         <h2 class="ficha-nome">${esc(jogador.nome)}</h2>
         ${descricao ? `<p class="ficha-descricao">${descricao}</p>` : ""}
-        ${jogador.tipo === "convidado" ? '<span class="selo selo-convidado">convidado</span>' : ""}
         ${jogador.tipo === "goleiro" ? '<span class="selo selo-goleiro">goleiro</span>' : ""}
       </section>
 

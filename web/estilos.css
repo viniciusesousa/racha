@@ -49,8 +49,6 @@
   --sobre-medalha: var(--preto);
 
   /* ---- Selos e avisos ---- */
-  --convidado: #6b21a8;          /* 7,4 : 1 sobre o fundo do selo */
-  --convidado-fundo: #f3e8ff;
   --aviso: #6b4705;              /* 7,5 : 1 sobre o fundo do aviso */
   --aviso-fundo: #fdf3d6;
 
@@ -94,8 +92,6 @@
     --principal-suave: #3a1a22;
     --sobre-principal-suave: #f6c6cf; /* 10,3 : 1 */
 
-    --convidado: #d8b4fe;
-    --convidado-fundo: #2e1a47;
     --aviso: #fcd98a;
     --aviso-fundo: #352a0c;
 
@@ -525,7 +521,6 @@ a.linha:active { background: var(--principal-suave); }
   vertical-align: 2px;
   white-space: nowrap;
 }
-.selo-convidado { background: var(--convidado-fundo); color: var(--convidado); }
 .selo-goleiro { background: var(--principal-suave); color: var(--sobre-principal-suave); }
 .selo-origem { background: var(--fundo); color: var(--texto-suave); border: 1px solid var(--borda); }
 
@@ -1106,3 +1101,97 @@ a.linha:active { background: var(--principal-suave); }
   font-weight: 700;
   cursor: pointer;
 }
+
+
+/* =====================================================================
+   FAIXA "AMBIENTE DE TESTE" (só aparece no computador de desenvolvimento)
+   =====================================================================
+   Listras pretas e amarelas, de aviso. Texto preto sobre amarelo: 12 : 1. */
+.faixa-teste {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 6px 12px;
+  background: repeating-linear-gradient(-45deg, #fcd34d 0 14px, #fde68a 14px 28px);
+  border-bottom: 2px solid #0e120d;
+  color: #0e120d;
+  font-family: var(--fonte-numero);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;       /* sempre uma linha só */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Com a faixa, o cabeçalho gruda logo abaixo dela. */
+.ambiente-teste .topo { top: 34px; }
+
+
+/* =====================================================================
+   ÁREA DO ADMIN (admin.html)
+   ===================================================================== */
+/* Abas do admin são botões: tira a aparência padrão de botão. */
+button.aba {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+/* Sem as abas embaixo (login), não precisa do espaço reservado. */
+.pagina-admin:not(.com-abas) { padding-bottom: 24px; }
+
+.topo-sair {
+  margin-left: auto;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.topo-sair[hidden] { display: none; }
+
+/* Cartão de login / avisos de acesso */
+.login { max-width: 420px; margin: 24px auto; text-align: center; }
+.login h2 { margin: 4px 0 16px; font-family: var(--fonte-numero); font-size: 1.6rem; }
+.login p { color: var(--texto-suave); }
+.login-escudo { width: 96px; height: auto; }
+.login form { display: grid; gap: 12px; text-align: left; }
+
+/* Campos de formulário */
+.campo { display: grid; gap: 4px; font-weight: 600; font-size: 0.9rem; }
+.campo input,
+.campo select,
+.campo textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--cartao);
+  color: var(--texto);
+  font-size: 1rem;
+  font-weight: 400;
+}
+.botao-largo { width: 100%; padding: 14px; font-size: 1rem; }
+.botao:disabled { opacity: 0.6; cursor: wait; }
+.link-botao {
+  margin-top: 12px;
+  border: 0;
+  background: none;
+  color: var(--ativo);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Mensagens de erro e aviso */
+.mensagem { margin: 0; padding: 10px 12px; border-radius: 10px; font-size: 0.9rem; font-weight: 600; }
+.mensagem-erro { background: var(--derrota); color: var(--sobre-derrota); }   /* 6,6 : 1 */
+.mensagem-aviso { background: var(--aviso-fundo); color: var(--aviso); }      /* 7,5 : 1 */
+
+.admin-usuario { margin: 0 0 12px; color: var(--texto-suave); font-size: 0.85rem; }
