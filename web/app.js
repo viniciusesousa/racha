@@ -131,6 +131,25 @@ function selosJogador(jogador) {
   return html;
 }
 
+// Esqueleto de carregamento: linhas "fantasma" no formato da lista que vai
+// aparecer. Com chips = também desenha os botões de categoria do ranking.
+function esqueleto({ linhas = 6, chips = false } = {}) {
+  const linha = `
+    <li class="esqueleto-linha">
+      <span class="esqueleto esqueleto-circulo"></span>
+      <span class="esqueleto-textos">
+        <span class="esqueleto esqueleto-texto"></span>
+        <span class="esqueleto esqueleto-texto curto"></span>
+      </span>
+      <span class="esqueleto esqueleto-valor"></span>
+    </li>`;
+  const botoes = chips
+    ? `<div class="esqueleto-chips">${'<span class="esqueleto esqueleto-chip"></span>'.repeat(4)}</div>`
+    : "";
+  return `<div aria-busy="true" aria-label="Carregando">${botoes}
+    <ul class="lista">${linha.repeat(linhas)}</ul></div>`;
+}
+
 // Espera a resposta do banco, mas desiste depois do tempo limite.
 async function consultar(promessa) {
   const limite = new Promise((_, rejeitar) =>
@@ -547,6 +566,7 @@ async function telaJogador(id) {
 const conteudo = document.getElementById("conteudo");
 const tituloTela = document.getElementById("titulo-tela");
 const botaoVoltar = document.getElementById("botao-voltar");
+const escudoTopo = document.getElementById("topo-escudo");
 let destinoVoltar = null;
 // Fica verdadeiro depois da primeira troca de tela dentro do app.
 let navegouNoApp = false;
@@ -567,6 +587,8 @@ function mostrarErro(erro) {
 // Conta os pedidos de tela: se a pessoa trocar de tela antes da anterior
 // terminar de carregar, a resposta atrasada é ignorada.
 let pedidoAtual = 0;
+// Última tela desenhada (para não animar ao só trocar de categoria).
+let ultimaRota = null;
 
 // Lê o endereço (#...) e desenha a tela correspondente.
 async function desenharTela() {
@@ -579,17 +601,17 @@ async function desenharTela() {
     aba.classList.toggle("ativa", aba.dataset.aba === abaAtiva));
 
   try {
-    if (!dados.carregado) conteudo.innerHTML = `<p class="carregando">Carregando…</p>`;
+    if (!dados.carregado) conteudo.innerHTML = esqueleto({ chips: rota === "rankings" || !rota });
     await carregarDadosBase();
 
     let tela;
     if (rota === "rachas") tela = telaRachas();
     else if (rota === "racha") {
-      conteudo.innerHTML = `<p class="carregando">Carregando…</p>`;
+      conteudo.innerHTML = esqueleto();
       tela = await telaRacha(Number(parametro));
     } else if (rota === "jogadores") tela = telaJogadores();
     else if (rota === "jogador") {
-      conteudo.innerHTML = `<p class="carregando">Carregando…</p>`;
+      conteudo.innerHTML = esqueleto();
       tela = await telaJogador(Number(parametro));
     } else tela = telaRankings(parametro);
 
@@ -598,8 +620,19 @@ async function desenharTela() {
     tituloTela.textContent = tela.titulo;
     document.title = `${tela.titulo} · Racha de Quinta`;
     conteudo.innerHTML = tela.html;
+    // Reinicia a animação de entrada (transição suave entre telas).
+    // Ao só trocar de categoria no ranking, não anima (fica mais calmo).
+    if (rota !== ultimaRota) {
+      conteudo.classList.remove("entrando");
+      void conteudo.offsetWidth;  // força o navegador a "esquecer" a animação anterior
+      conteudo.classList.add("entrando");
+    }
+    ultimaRota = rota;
+
+    // Telas de detalhe mostram a seta de voltar no lugar do escudo.
     destinoVoltar = tela.voltar ?? null;
     botaoVoltar.hidden = !destinoVoltar;
+    escudoTopo.hidden = Boolean(destinoVoltar);
     if (tela.depois) tela.depois();
 
     // Ao trocar de tela (não de categoria), volta para o topo.

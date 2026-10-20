@@ -3,62 +3,113 @@
    =====================================================================
    Pensado primeiro para celular: uma coluna só, letras grandes, áreas de
    toque confortáveis. Em telas maiores o conteúdo fica centralizado.
-   As cores ficam todas aqui no topo ("variáveis"), para facilitar ajustes.
+
+   PALETA: tirada do escudo (web/img/escudo.png).
+     * Verde escuro e verde = cores principais (cabeçalho, abas, botões).
+     * Dourado = destaques (1º lugar, medalhas, recordes). NUNCA é usado
+       como cor de texto sobre fundo claro (contraste baixo); texto em cima
+       do dourado é sempre preto.
+     * Prata e bronze neutros para o 2º e o 3º lugar.
+   Todos os pares de texto/fundo abaixo foram conferidos no padrão de
+   contraste WCAG AA (mínimo 4,5 : 1).
+
+   As cores ficam em "variáveis" aqui no topo: mudar uma cor aqui muda o
+   app inteiro. O modo escuro só troca os valores das variáveis.
    ===================================================================== */
 
 :root {
-  /* Cores principais (verde de gramado) */
-  --verde: #15803d;
-  --verde-escuro: #166534;
-  --verde-claro: #dcfce7;
+  /* ---- Cores do escudo ---- */
+  --verde-escuro: #3a650f;
+  --verde: #528114;
+  --dourado: #e1ab11;
+  --preto: #0e120d;
+  --creme: #f8f8e3;
 
-  /* Fundo, cartões e textos */
-  --fundo: #f3f6f4;
+  /* ---- Papéis de cada cor (modo claro) ---- */
+  --fundo: #f5f6f1;
   --cartao: #ffffff;
-  --texto: #14201a;
-  --texto-suave: #5b6b62;
-  --borda: #e1e8e3;
+  --borda: #dfe3d8;
+  --texto: #0e120d;              /* 17,4 : 1 sobre o fundo */
+  --texto-suave: #535b4d;        /* 6,5 : 1 sobre o fundo */
 
-  /* Medalhas dos 3 primeiros */
-  --ouro: #d4a017;
-  --prata: #9aa5b1;
-  --bronze: #b8733d;
+  --cabecalho: var(--verde-escuro);
+  --sobre-cabecalho: #ffffff;    /* 6,9 : 1 */
+  --botao: var(--verde);
+  --sobre-botao: #ffffff;        /* 4,7 : 1 */
+  --ativo: var(--verde-escuro);  /* abas, chips e textos de destaque: 6,9 : 1 */
+  --sobre-ativo: #ffffff;
+  --verde-suave: #e8f1dc;        /* fundo de selos e toques */
+  --sobre-verde-suave: #2f520c;  /* 7,7 : 1 */
 
-  /* Selos e avisos */
-  --convidado: #7c3aed;
-  --convidado-fundo: #ede9fe;
-  --aviso: #92400e;
-  --aviso-fundo: #fef3c7;
-  --vitoria: #15803d;
-  --empate: #6b7280;
-  --derrota: #b91c1c;
+  /* ---- Medalhas (texto sempre preto por cima) ---- */
+  --ouro: var(--dourado);        /* preto sobre ouro: 9,0 : 1 */
+  --prata: #c3c8cd;              /* preto sobre prata: 11,2 : 1 */
+  --bronze: #c8956a;             /* preto sobre bronze: 7,2 : 1 */
+  --sobre-medalha: var(--preto);
 
+  /* ---- Selos e avisos ---- */
+  --convidado: #6b21a8;          /* 7,4 : 1 sobre o fundo do selo */
+  --convidado-fundo: #f3e8ff;
+  --aviso: #6b4705;              /* 7,5 : 1 sobre o fundo do aviso */
+  --aviso-fundo: #fdf3d6;
+
+  /* ---- Resultados (V, E, D) ---- */
+  --vitoria: var(--verde-escuro);
+  --empate: #5f6660;
+  --derrota: #b42318;
+  --sobre-resultado: #ffffff;    /* mínimo 5,9 : 1 */
+
+  /* ---- Esqueleto de carregamento ---- */
+  --esqueleto: #e6e9e1;
+  --esqueleto-brilho: #f3f5ef;
+
+  /* ---- Fontes ---- */
+  --fonte-texto: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fonte-numero: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+
+  /* ---- Medidas ---- */
   --raio: 14px;
   --altura-abas: 64px;
+  --largura-maxima: 680px;
 }
 
-/* Modo escuro automático, se o celular estiver em modo escuro */
+/* Modo escuro automático: segue a configuração do celular. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --verde: #22c55e;
-    --verde-escuro: #16a34a;
-    --verde-claro: #12301f;
-    --fundo: #0d1411;
-    --cartao: #16201b;
-    --texto: #e8f0eb;
-    --texto-suave: #9bb0a4;
-    --borda: #26342d;
-    --convidado: #c4b5fd;
-    --convidado-fundo: #2e2550;
-    --aviso: #fcd34d;
-    --aviso-fundo: #3a2e0f;
-    --vitoria: #4ade80;
-    --empate: #9ca3af;
-    --derrota: #f87171;
+    --fundo: var(--preto);
+    --cartao: #171d14;
+    --borda: #2a3324;
+    --texto: var(--creme);         /* 17,6 : 1 */
+    --texto-suave: #b3b8a0;        /* 9,3 : 1 */
+
+    --cabecalho: #1f3309;
+    --sobre-cabecalho: var(--creme); /* 12,7 : 1 */
+    --botao: #6ea023;
+    --sobre-botao: var(--preto);   /* 6,0 : 1 */
+    --ativo: #8cc63f;              /* verde claro: 9,2 : 1 sobre o fundo */
+    --sobre-ativo: var(--preto);
+    --verde-suave: #22331a;
+    --sobre-verde-suave: #b5e07a;  /* 8,9 : 1 */
+
+    --convidado: #d8b4fe;
+    --convidado-fundo: #2e1a47;
+    --aviso: #fcd98a;
+    --aviso-fundo: #352a0c;
+
+    --vitoria: #8cc63f;
+    --empate: #9ca39a;
+    --derrota: #f28b82;
+    --sobre-resultado: var(--preto); /* mínimo 7,3 : 1 */
+
+    --esqueleto: #1f271b;
+    --esqueleto-brilho: #2a3424;
   }
 }
 
-/* ---------- Base ---------- */
+
+/* =====================================================================
+   BASE
+   ===================================================================== */
 * { box-sizing: border-box; }
 
 html { -webkit-text-size-adjust: 100%; }
@@ -67,33 +118,67 @@ body {
   margin: 0;
   background: var(--fundo);
   color: var(--texto);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--fonte-texto);
   font-size: 16px;
-  line-height: 1.4;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
   /* Espaço para a barra de abas não cobrir o fim do conteúdo */
   padding-bottom: calc(var(--altura-abas) + env(safe-area-inset-bottom));
 }
 
 button, input { font: inherit; color: inherit; }
 
-/* ---------- Cabeçalho ---------- */
+/* Contorno visível ao navegar pelo teclado */
+a:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 3px solid var(--ativo);
+  outline-offset: 2px;
+}
+
+/* Números com cara de placar esportivo */
+.num,
+.linha-valor,
+.posicao,
+.placar,
+.placar-grande .numero,
+.numero-caixa b {
+  font-family: var(--fonte-numero);
+  font-variant-numeric: tabular-nums;
+}
+
+
+/* =====================================================================
+   CABEÇALHO
+   ===================================================================== */
 .topo {
   position: sticky;
   top: 0;
   z-index: 10;
+  background: var(--cabecalho);
+  color: var(--sobre-cabecalho);
+  padding-top: env(safe-area-inset-top);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+}
+.topo-conteudo {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 10px;
+  max-width: var(--largura-maxima);
   min-height: 56px;
-  padding: 8px 16px;
-  padding-top: calc(8px + env(safe-area-inset-top));
-  background: var(--verde);
-  color: #fff;
+  margin: 0 auto;
+  padding: 6px 16px;
+}
+.topo-escudo {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  flex: none;
 }
 .topo h1 {
   margin: 0;
-  font-size: 1.2rem;
+  font-family: var(--fonte-numero);
+  font-size: 1.45rem;
   font-weight: 700;
+  letter-spacing: 0.01em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -107,40 +192,97 @@ button, input { font: inherit; color: inherit; }
   border: 0;
   border-radius: 50%;
   background: transparent;
-  color: #fff;
+  color: inherit;
   cursor: pointer;
+  flex: none;
 }
 .topo-voltar:active { background: rgba(255, 255, 255, 0.18); }
-/* Esconde a seta de voltar nas telas principais */
-.topo-voltar[hidden] { display: none; }
+/* Esconde a seta de voltar (e o escudo) quando não se aplicam */
+.topo-voltar[hidden],
+.topo-escudo[hidden] { display: none; }
 
-/* ---------- Conteúdo ---------- */
+
+/* =====================================================================
+   CONTEÚDO
+   ===================================================================== */
 .conteudo {
-  max-width: 640px;
+  max-width: var(--largura-maxima);
   margin: 0 auto;
   padding: 16px;
 }
 
-.carregando, .vazio {
+/* Transição suave ao trocar de tela */
+.entrando { animation: entrar 0.22s ease-out; }
+@keyframes entrar {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.vazio {
   text-align: center;
   color: var(--texto-suave);
   padding: 32px 0;
 }
 
-/* ---------- Barra de abas (embaixo) ---------- */
+
+/* =====================================================================
+   ESQUELETO DE CARREGAMENTO
+   =====================================================================
+   Blocos cinza com um brilho passando, no formato do conteúdo que vai
+   aparecer. Dá a sensação de que a tela já está quase pronta. */
+.esqueleto {
+  border-radius: 8px;
+  background: linear-gradient(90deg,
+    var(--esqueleto) 25%, var(--esqueleto-brilho) 50%, var(--esqueleto) 75%);
+  background-size: 200% 100%;
+  animation: brilho 1.3s ease-in-out infinite;
+}
+@keyframes brilho {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+.esqueleto-chips { display: flex; gap: 8px; margin-bottom: 16px; overflow: hidden; }
+.esqueleto-chip { flex: none; width: 96px; height: 36px; border-radius: 999px; }
+.esqueleto-linha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 10px 14px;
+}
+.esqueleto-circulo { flex: none; width: 32px; height: 32px; border-radius: 50%; }
+.esqueleto-textos { flex: 1; display: grid; gap: 6px; }
+.esqueleto-texto { height: 12px; }
+.esqueleto-texto.curto { width: 40%; }
+.esqueleto-valor { flex: none; width: 36px; height: 24px; }
+
+/* Quem prefere menos movimento (configuração do celular) não vê animações. */
+@media (prefers-reduced-motion: reduce) {
+  .entrando, .esqueleto { animation: none; }
+}
+
+
+/* =====================================================================
+   BARRA DE ABAS (embaixo)
+   ===================================================================== */
 .abas {
   position: fixed;
   left: 0;
   right: 0;
   bottom: 0;
   z-index: 10;
-  display: flex;
-  height: calc(var(--altura-abas) + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
   background: var(--cartao);
   border-top: 1px solid var(--borda);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.abas-conteudo {
+  display: flex;
+  max-width: var(--largura-maxima);
+  height: var(--altura-abas);
+  margin: 0 auto;
 }
 .aba {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -151,11 +293,26 @@ button, input { font: inherit; color: inherit; }
   text-decoration: none;
   font-size: 0.75rem;
   font-weight: 600;
+  transition: color 0.15s;
 }
 .aba svg { width: 26px; height: 26px; }
-.aba.ativa { color: var(--verde); }
+.aba.ativa { color: var(--ativo); }
+/* Tracinho em cima da aba ativa */
+.aba.ativa::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 30%;
+  right: 30%;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--ativo);
+}
 
-/* ---------- Seletor de categoria (rankings) ---------- */
+
+/* =====================================================================
+   SELETOR DE CATEGORIA (rankings)
+   ===================================================================== */
 .categorias {
   display: flex;
   gap: 8px;
@@ -177,11 +334,12 @@ button, input { font: inherit; color: inherit; }
   white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 .categoria.ativa {
-  background: var(--verde);
-  border-color: var(--verde);
-  color: #fff;
+  background: var(--ativo);
+  border-color: var(--ativo);
+  color: var(--sobre-ativo);
 }
 .nota {
   margin: -6px 0 12px;
@@ -189,7 +347,10 @@ button, input { font: inherit; color: inherit; }
   font-size: 0.85rem;
 }
 
-/* ---------- Listas em cartão ---------- */
+
+/* =====================================================================
+   LISTAS EM CARTÃO
+   ===================================================================== */
 .lista {
   list-style: none;
   margin: 0;
@@ -206,12 +367,16 @@ button, input { font: inherit; color: inherit; }
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 56px;
+  min-height: 60px;
   padding: 10px 14px;
   color: inherit;
   text-decoration: none;
+  transition: background 0.15s;
 }
-a.linha:active { background: var(--verde-claro); }
+a.linha:active { background: var(--verde-suave); }
+@media (hover: hover) {
+  a.linha:hover { background: var(--verde-suave); }
+}
 
 .linha-principal { flex: 1; min-width: 0; }
 .linha-nome,
@@ -227,15 +392,17 @@ a.linha:active { background: var(--verde-claro); }
   font-size: 0.85rem;
 }
 .linha-valor {
-  font-size: 1.15rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1;
   text-align: right;
 }
 .linha-valor small {
   display: block;
+  margin-top: 2px;
+  font-family: var(--fonte-texto);
   color: var(--texto-suave);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 600;
 }
 
@@ -244,50 +411,62 @@ a.linha:active { background: var(--verde-claro); }
   flex: none;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
   color: var(--texto-suave);
+  font-size: 1.15rem;
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
 }
 
-/* ---------- Pódio: destaque dos 3 primeiros ---------- */
-.podio .posicao { color: #fff; }
+/* ---------- Destaque dos 3 primeiros ---------- */
+/* Medalha com texto preto por cima (nunca texto dourado sobre claro). */
+.podio .posicao { color: var(--sobre-medalha); }
 .podio-1 .posicao { background: var(--ouro); }
 .podio-2 .posicao { background: var(--prata); }
 .podio-3 .posicao { background: var(--bronze); }
-.podio-1 { background: linear-gradient(90deg, rgba(212, 160, 23, 0.14), transparent 70%); }
-.podio-2 { background: linear-gradient(90deg, rgba(154, 165, 177, 0.16), transparent 70%); }
-.podio-3 { background: linear-gradient(90deg, rgba(184, 115, 61, 0.14), transparent 70%); }
-.podio-1 .linha-valor { font-size: 1.35rem; }
+.podio-1 { background: linear-gradient(90deg, rgba(225, 171, 17, 0.16), transparent 70%); }
+.podio-2 { background: linear-gradient(90deg, rgba(195, 200, 205, 0.20), transparent 70%); }
+.podio-3 { background: linear-gradient(90deg, rgba(200, 149, 106, 0.16), transparent 70%); }
+.podio-1 .linha-valor { font-size: 1.9rem; }
 
-/* ---------- Selos ---------- */
+
+/* =====================================================================
+   SELOS
+   ===================================================================== */
 .selo {
   display: inline-block;
   margin-left: 6px;
   padding: 1px 8px;
   border-radius: 999px;
+  font-family: var(--fonte-texto);
   font-size: 0.7rem;
   font-weight: 700;
   vertical-align: 2px;
   white-space: nowrap;
 }
 .selo-convidado { background: var(--convidado-fundo); color: var(--convidado); }
-.selo-goleiro { background: var(--verde-claro); color: var(--verde-escuro); }
+.selo-goleiro { background: var(--verde-suave); color: var(--sobre-verde-suave); }
 .selo-origem { background: var(--fundo); color: var(--texto-suave); border: 1px solid var(--borda); }
 
-/* ---------- Rachas ---------- */
+
+/* =====================================================================
+   RACHAS
+   ===================================================================== */
 .racha-data { font-weight: 700; }
 .placar {
   flex: none;
-  font-size: 1.15rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
+  font-size: 1.5rem;
+  font-weight: 700;
   white-space: nowrap;
 }
-.placar .equipe { color: var(--texto-suave); font-size: 0.8rem; font-weight: 700; }
-.vencedor { color: var(--verde); }
+.placar .equipe {
+  font-family: var(--fonte-texto);
+  color: var(--texto-suave);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.vencedor { color: var(--ativo); }
 
 .aviso {
   margin: 4px 0 0;
@@ -315,20 +494,20 @@ a.linha:active { background: var(--verde-claro); }
   gap: 8px;
 }
 .placar-grande .numero {
-  font-size: 2.6rem;
+  font-size: 3.4rem;
   font-weight: 800;
   line-height: 1;
-  font-variant-numeric: tabular-nums;
 }
-.placar-grande .rotulo { color: var(--texto-suave); font-weight: 700; font-size: 0.85rem; }
+.placar-grande .rotulo { color: var(--texto-suave); font-weight: 700; font-size: 0.8rem; letter-spacing: 0.05em; }
 .placar-grande .x { color: var(--texto-suave); font-size: 1.3rem; font-weight: 700; }
 .resultado-texto { margin: 12px 0 0; text-align: center; font-weight: 700; }
 
 .secao-titulo {
-  margin: 20px 0 8px;
-  font-size: 0.85rem;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  margin: 22px 0 8px;
+  font-family: var(--fonte-numero);
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--texto-suave);
 }
@@ -346,7 +525,10 @@ a.linha:active { background: var(--verde-claro); }
 .numeros b { color: var(--texto); }
 .legenda { margin: 8px 2px 0; color: var(--texto-suave); font-size: 0.78rem; }
 
-/* ---------- Jogadores ---------- */
+
+/* =====================================================================
+   JOGADORES
+   ===================================================================== */
 .busca {
   width: 100%;
   margin-bottom: 12px;
@@ -356,7 +538,7 @@ a.linha:active { background: var(--verde-claro); }
   background: var(--cartao);
   font-size: 1rem;
 }
-.busca:focus { outline: 2px solid var(--verde); outline-offset: 1px; }
+.busca::placeholder { color: var(--texto-suave); }
 
 /* Ficha do jogador */
 .ficha-cabecalho h2 { margin: 0; font-size: 1.4rem; }
@@ -375,9 +557,9 @@ a.linha:active { background: var(--verde-claro); }
 }
 .numero-caixa b {
   display: block;
-  font-size: 1.5rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
 }
 .numero-caixa span { color: var(--texto-suave); font-size: 0.78rem; font-weight: 600; }
 
@@ -389,7 +571,7 @@ a.linha:active { background: var(--verde-claro); }
   width: 28px;
   height: 28px;
   border-radius: 8px;
-  color: #fff;
+  color: var(--sobre-resultado);
   font-size: 0.8rem;
   font-weight: 800;
 }
@@ -398,7 +580,10 @@ a.linha:active { background: var(--verde-claro); }
 .res-D { background: var(--derrota); }
 .res-sem { background: var(--borda); color: var(--texto-suave); }
 
-/* ---------- Mensagem de erro ---------- */
+
+/* =====================================================================
+   MENSAGEM DE ERRO E BOTÕES
+   ===================================================================== */
 .erro {
   text-align: center;
   padding: 32px 16px;
@@ -409,8 +594,8 @@ a.linha:active { background: var(--verde-claro); }
   padding: 12px 22px;
   border: 0;
   border-radius: 999px;
-  background: var(--verde);
-  color: #fff;
+  background: var(--botao);
+  color: var(--sobre-botao);
   font-weight: 700;
   cursor: pointer;
 }
