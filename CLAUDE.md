@@ -4,7 +4,7 @@
 App web para controlar o racha semanal de futebol (quintas-feiras), substituindo um app antigo feito no Mocha (descontinuado). O usuário principal não é programador: explique cada passo em português simples e peça confirmação antes de ações importantes.
 
 ## Situação atual
-- Todos os scripts de 01 a 07 já foram executados no Supabase:
+- Todos os scripts de 01 a 08 já foram executados no Supabase (banco real):
   - em 19/10/2026:
     - `banco/01_estrutura.sql`: tabelas, regras e permissões;
     - `banco/dados/02_dados_historicos.sql`: histórico da planilha do Mocha (fora do git);
@@ -13,9 +13,12 @@ App web para controlar o racha semanal de futebol (quintas-feiras), substituindo
     - `banco/dados/05_racha_2026-10-15.sql`: racha de 15/10/2026, 2 jogadores novos, cobranças e pagamentos (fora do git);
   - em 20/10/2026 (saneamento de jul–out/2026, a partir das listas e anotações do WhatsApp; placares conferidos pelo usuário):
     - `banco/06_ajustes_estrutura.sql`: permite `situacao = 'sem_informacao'` em rachas e `forma = 'nao_informado'` em pagamentos;
-    - `banco/dados/07_saneamento_jul_out.sql` (fora do git, gerado por `banco/dados/gerar_07_saneamento.py`): rachas de 02/07 a 08/10 corrigidos/incluídos, cadastros novos, cobranças e pagamentos desde 02/07.
-- **Nenhum desses scripts (01 a 07) deve ser rodado de novo** no Supabase: o banco já tem as tabelas, os dados e as visões, e rodar de novo daria erro ou duplicaria registros.
-- Mudanças futuras devem ser feitas em novos scripts numerados (próximo: `08_...sql`), com confirmação do usuário antes de executar. Scripts com dados reais vão para `banco/dados/`.
+    - `banco/dados/07_saneamento_jul_out.sql` (fora do git, gerado por `banco/dados/gerar_07_saneamento.py`): rachas de 02/07 a 08/10 corrigidos/incluídos, cadastros novos, cobranças e pagamentos desde 02/07;
+    - `banco/08_area_admin.sql`: fim do tipo "convidado", tabela `lances` (com gatilhos que somam/subtraem nas escalações), funções do admin (`abrir_racha`, `definir_status_dia`, `definir_equipe`, `desfazer_ultimo_lance`) e visão `v_saldos_jogadores`;
+    - `banco/dados/08_dados_correcao_cadastro.sql` (fora do git): correção de nome de um cadastro.
+- **Nenhum desses scripts (01 a 08) deve ser rodado de novo** no banco real: o banco já tem as tabelas, os dados e as visões, e rodar de novo daria erro ou duplicaria registros.
+- **Banco de teste:** projeto Supabase separado **"racha-teste"**, só com dados fictícios ("Jogador Teste N"). Nele rodaram 01, 03, 04, 06, 08 e `banco/teste/popular_racha_teste.sql`; cadastro aberto desligado; um usuário admin de teste. Os testes automáticos do 08 ficam em `banco/teste/testar_08.sql` e `banco/teste/testar_limpeza.sql` (rodar só no racha-teste). Todo script novo de estrutura roda primeiro no racha-teste.
+- Mudanças futuras devem ser feitas em novos scripts numerados (próximo: `09_...sql`), com confirmação do usuário antes de executar. Scripts com dados reais vão para `banco/dados/`.
 - A área pública (pasta `web/`) foi redesenhada em 6 etapas: identidade visual (paleta grená, sem verde), Início, Rankings, Rachas, Ficha do jogador e app instalável (PWA).
 - **Site no ar desde 20/10/2026:** https://viniciusesousa.github.io/racha/ (marcado como `noindex, nofollow`, não aparece no Google; o link circula só no grupo).
 
