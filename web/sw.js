@@ -23,7 +23,7 @@
 // =====================================================================
 
 // >>> Aumente este número a cada publicação de mudanças na pasta web/ <<<
-const VERSAO = "v3";
+const VERSAO = "v4";
 const NOME_CACHE = `racha-estatico-${VERSAO}`;
 
 // Arquivos do próprio app guardados já na instalação.

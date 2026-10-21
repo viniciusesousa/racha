@@ -323,7 +323,7 @@ const SECOES = {
   devedores: { titulo: "Devedores",      etapa: "etapa 5", modulo: () => window.SecaoDevedores },
   caixa:     { titulo: "Caixa",          etapa: "etapa 6", modulo: () => window.SecaoCaixa },
   jogadores: { titulo: "Jogadores",      etapa: "etapa 7", modulo: () => window.SecaoJogadores },
-  config:    { titulo: "Configurações",  etapa: "etapa 8" },
+  config:    { titulo: "Configurações",  etapa: "etapa 8", modulo: () => window.SecaoConfig },
 };
 
 function secaoAtual() {
