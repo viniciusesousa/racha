@@ -414,40 +414,67 @@ window.SecaoRacha = (() => {
 
   // --- 5. Fechamento financeiro
   const FORMAS = [["pix", "Pix"], ["dinheiro", "Dinheiro"], ["cartao", "Cartão"]];
-  const NOME_FORMA = { pix: "Pix", dinheiro: "Dinheiro", cartao: "Cartão", nao_informado: "Não informado" };
+  // Pagamentos antigos (script 09): "dinheiro_ou_cartao" e "nao_informado" aparecem como "Dinheiro/cartão".
+  const NOME_FORMA = { pix: "Pix", dinheiro: "Dinheiro", cartao: "Cartão", dinheiro_ou_cartao: "Dinheiro/cartão", nao_informado: "Dinheiro/cartão" };
+  const NOME_CONTA = { banco: "Banco", quadra: "Crédito na quadra" };
 
-  // Busca as cobranças do racha, o saldo acumulado de quem foi cobrado e
-  // os pagamentos registrados na data do racha.
+  // Busca as cobranças do racha, o saldo acumulado de quem foi cobrado,
+  // os pagamentos registrados na data do racha e as despesas do racha
+  // (quadra, lançada ao abrir; goleiros de aluguel).
   async function carregarFinanceiro() {
     const r = estado.racha;
     const cob = await banco.from("cobrancas").select("jogador_id, valor").eq("racha_id", r.id);
     if (cob.error) throw cob.error;
     const ids = cob.data.map((c) => c.jogador_id);
-    const [sal, pag] = await Promise.all([
+    const [sal, pag, desp, cfg] = await Promise.all([
       ids.length ? banco.from("v_saldos_jogadores").select("jogador_id, saldo").in("jogador_id", ids)
                  : Promise.resolve({ data: [], error: null }),
       banco.from("pagamentos").select("id, jogador_id, valor, forma, criado_em")
         .eq("data_pagamento", r.data_jogo).order("id"),
+      banco.from("despesas").select("id, descricao, categoria, valor, conta").eq("racha_id", r.id).order("id"),
+      banco.from("configuracoes").select("valor_goleiro_aluguel").limit(1),
     ]);
-    if (sal.error) throw sal.error;
-    if (pag.error) throw pag.error;
+    for (const resp of [sal, pag, desp, cfg]) if (resp.error) throw resp.error;
     estado.fin = {
       cobrancas: new Map(cob.data.map((c) => [c.jogador_id, Number(c.valor)])),
       saldos: new Map(sal.data.map((x) => [x.jogador_id, Number(x.saldo)])),
       pagamentos: pag.data.map((x) => ({ ...x, valor: Number(x.valor) })),
+      despesas: desp.data.map((x) => ({ ...x, valor: Number(x.valor) })),
+      valorGoleiro: Number(cfg.data[0]?.valor_goleiro_aluguel ?? 0),
     };
+  }
+
+  // Despesas do racha: quadra (lançada ao abrir o racha) e goleiros de aluguel.
+  function htmlDespesasDia() {
+    const fin = estado.fin;
+    return `
+      <div class="cartao">
+        <h3 class="secao-titulo" style="margin-top:0">Despesas do racha</h3>
+        ${fin.despesas.length ? `<ul class="despesas-dia">${fin.despesas.map((d) => `
+          <li><span>${esc(d.categoria || d.descricao)} <span class="tag-conta tag-${d.conta}">${d.conta === "banco" ? "Banco" : "Quadra"}</span></span>
+            <b>${reais(d.valor)}</b>
+            <button type="button" class="extrato-excluir" data-acao="excluir-despesa-dia" data-despesa="${d.id}"
+                    aria-label="Excluir ${esc(d.descricao)}">✕</button></li>`).join("")}</ul>`
+          : `<p class="vazio" style="padding:4px 0">Nenhuma despesa ligada a este racha.</p>`}
+        <button type="button" class="botao botao-largo botao-secundario" data-acao="goleiro-aluguel" style="margin-top:10px"
+                ${fin.valorGoleiro > 0 ? "" : "disabled"}>+ goleiro de aluguel (${reais(fin.valorGoleiro)}, sai do Banco)</button>
+      </div>`;
   }
 
   function htmlFechamento() {
     const fin = estado.fin;
     if (!fin.cobrancas.size) {
       return `<div class="cartao"><p class="vazio" style="padding:8px 0">Ninguém tem cobrança neste racha ainda.
-        Marque os presentes (e quem faltou de última hora) na Lista.</p></div>`;
+        Marque os presentes (e quem faltou de última hora) na Lista.</p></div>${htmlDespesasDia()}`;
     }
     // --- Resumo do dia
     const totalCobrado = [...fin.cobrancas.values()].reduce((a, v) => a + v, 0);
     const porForma = {};
-    for (const pg of fin.pagamentos) porForma[pg.forma] = (porForma[pg.forma] || 0) + pg.valor;
+    for (const pg of fin.pagamentos) {
+      const f = pg.forma === "nao_informado" ? "dinheiro_ou_cartao" : pg.forma;
+      porForma[f] = (porForma[f] || 0) + pg.valor;
+    }
+    const noBanco = porForma.pix || 0;
     const totalRecebido = Object.values(porForma).reduce((a, v) => a + v, 0);
     // "Não pagaram hoje": só o racha do dia. Falta = cobrança do dia − pago
     // na data do racha (limitado ao saldo: quem tinha crédito já está coberto).
@@ -473,9 +500,11 @@ window.SecaoRacha = (() => {
           <div><span>Recebido</span><b class="num">${reais(totalRecebido)}</b><small>${fin.pagamentos.length} pagamento(s)</small></div>
         </div>
         <ul class="resumo-formas">
-          ${[...FORMAS, ["nao_informado", "Não informado"]].filter(([f]) => f !== "nao_informado" || porForma[f])
+          ${[...FORMAS, ["dinheiro_ou_cartao", "Dinheiro/cartão"]].filter(([f]) => f !== "dinheiro_ou_cartao" || porForma[f])
             .map(([f, nome]) => `<li><span>${nome}</span><b>${reais(porForma[f] || 0)}</b></li>`).join("")}
         </ul>
+        <p class="legenda" style="margin:0 0 10px">Entrou no Banco (Pix): <b>${reais(noBanco)}</b> ·
+          no Crédito na quadra (dinheiro e cartão): <b>${reais(totalRecebido - noBanco)}</b></p>
         <p class="resumo-devendo"><b>Não pagaram hoje (${naoPagaram.length}):</b>
           ${listaNomes(naoPagaram, (d) => d.falta)}<br><small>só o racha de hoje</small></p>
         <p class="resumo-devendo"><b>Dívida acumulada (${devendo.length}):</b>
@@ -511,7 +540,30 @@ window.SecaoRacha = (() => {
       ${resumo}
       <ul class="lista lista-fin">${linhas}</ul>
       <p class="legenda">Saldo acumulado = tudo o que já foi cobrado − tudo o que já foi pago (inclui rachas
-        anteriores). O valor do "Pagou" pode ser maior que ${reais(estado.racha.valor_cobrado)} para quitar dívidas antigas.</p>`;
+        anteriores). O valor do "Pagou" pode ser maior que ${reais(estado.racha.valor_cobrado)} para quitar dívidas antigas.</p>
+      ${htmlDespesasDia()}`;
+  }
+
+  // Botão rápido: goleiro de aluguel do racha, pago pelo Banco.
+  function adicionarGoleiro() {
+    const r = estado.racha;
+    const valor = estado.fin.valorGoleiro;
+    const registro = {
+      data: r.data_jogo, descricao: `Goleiro de aluguel — racha de ${dataBR(r.data_jogo)}`,
+      categoria: "Goleiro de aluguel", valor, conta: "banco", racha_id: r.id,
+    };
+    gravar(
+      () => banco.from("despesas").insert(registro).select("id").single(),
+      async () => { await carregarFinanceiro(); desenharParte(); });
+  }
+
+  function excluirDespesaDia(id) {
+    const d = estado.fin.despesas.find((x) => x.id === id);
+    if (!d) return;
+    if (!confirm(`Excluir a despesa "${d.descricao}" (${reais(d.valor)}, ${NOME_CONTA[d.conta]})?`)) return;
+    gravar(
+      () => banco.from("despesas").delete().eq("id", id),
+      async () => { await carregarFinanceiro(); desenharParte(); });
   }
 
   function htmlFormPagou(id) {
@@ -701,6 +753,8 @@ window.SecaoRacha = (() => {
     if (b.dataset.acao === "cancelar-pagou") { estado.pagando = null; desenharParte(); return; }
     if (b.dataset.acao === "confirmar-pagou") { confirmarPagou(); return; }
     if (b.dataset.acao === "excluir-pagamento") { excluirPagamento(Number(b.dataset.pagamento)); return; }
+    if (b.dataset.acao === "goleiro-aluguel") { adicionarGoleiro(); return; }
+    if (b.dataset.acao === "excluir-despesa-dia") { excluirDespesaDia(Number(b.dataset.despesa)); return; }
   }
 
   // ---------------------------------------------------------------

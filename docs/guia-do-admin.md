@@ -39,11 +39,12 @@ Para cada pessoa, toque em um botão:
 - Para cada pagamento: **Pagou** → escolha **Pix, Dinheiro ou Cartão** (obrigatório) → confira o valor → **Confirmar**.
   - Se a pessoa quitar dívida antiga junto, aumente o valor (ex.: R$ 60,00).
   - Pagamento errado: toque no **✕** ao lado dele para excluir.
+- **Goleiro de aluguel:** no fim do Fechamento, toque em **+ goleiro de aluguel** (sai do Banco). Teve dois? Toque duas vezes. Lançou errado: ✕.
 - No **Resumo do dia** confira o total cobrado, o recebido por forma e quem ficou devendo.
 
 ## Outras abas
 - **Devedores:** quem está devendo e quais rachas estão em aberto. "Registrar pagamento" para quem paga outro dia; "Copiar mensagem" gera um lembrete educado para mandar no WhatsApp da pessoa.
-- **Caixa:** lance despesas (quadra, bola…). Mostra o saldo do caixa e o extrato do mês.
+- **Caixa:** duas contas — **Banco** (entra Pix) e **Crédito na quadra** (entra dinheiro e cartão; sai o aluguel da quadra, lançado sozinho ao abrir cada racha). Botões: **+ Despesa** (escolha de qual conta saiu), **Transferência** (ex.: adiantamento Banco → Quadra; não é despesa), **+ Entrada avulsa** (ou rendimento da conta) e **Conferir quadra** (digite o saldo da ficha da quadra; se houver diferença, um toque lança a diferença no saldo inicial da quadra). Extrato do mês com filtro por conta.
 - **Jogadores:** corrigir nome/apelido, marcar inativo, colocar foto (só com autorização do jogador) e lançar ajustes de estatística (sempre com motivo).
 
 ---

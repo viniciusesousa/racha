@@ -1431,6 +1431,27 @@ button.aba {
   border: 1px solid var(--borda); border-radius: 50%;
   background: var(--cartao); color: var(--texto-suave); cursor: pointer;
 }
+/* Duas contas (Banco e Crédito na quadra) */
+.contas-saldo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.contas-saldo .cartao { margin-bottom: 8px; padding: 12px 8px; }
+.saldo-conta b { font-size: 1.9rem; }
+.botoes-caixa { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.botoes-caixa .botao { min-height: 44px; padding: 8px 10px; font-size: 0.9rem; }
+.filtro-conta .status { flex: 1; }
+.tag-conta {
+  display: inline-block; margin-left: 2px; padding: 1px 7px; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 700; white-space: nowrap; vertical-align: 1px;
+}
+.tag-banco { background: var(--principal-suave); color: var(--sobre-principal-suave); }        /* mesmas cores do selo de goleiro */
+.tag-quadra { background: var(--fundo); color: var(--texto-suave); border: 1px solid var(--borda); }
+.conferencia-resultado { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 12px 0; }
+.conferencia-resultado div { padding: 8px 4px; border-radius: 10px; background: var(--fundo); text-align: center; }
+.conferencia-resultado span { display: block; color: var(--texto-suave); font-size: 0.72rem; font-weight: 600; }
+.conferencia-resultado b { display: block; font-size: 1.1rem; }
+/* Despesas do dia no fechamento */
+.despesas-dia { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.despesas-dia li { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+.despesas-dia li span:first-child { flex: 1; }
 
 /* =====================================================================
    ADMIN · JOGADORES
