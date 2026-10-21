@@ -196,6 +196,32 @@ a:focus-visible, button:focus-visible, input:focus-visible {
   flex: none;
 }
 .topo-voltar:active { background: rgba(255, 255, 255, 0.18); }
+/* Atalho para a área do admin: cadeado discreto à direita; com login de
+   admin no celular, vira o botão "Admin". */
+.topo-admin {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  margin: 0 -8px 0 auto;
+  border-radius: 50%;
+  color: inherit;
+  opacity: 0.75;
+  text-decoration: none;
+}
+.topo-admin:active { background: rgba(255, 255, 255, 0.18); }
+.topo-admin.logado {
+  width: auto;
+  height: auto;
+  margin-right: 0;
+  padding: 6px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 999px;
+  opacity: 1;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
 /* Esconde a seta de voltar (e o escudo) quando não se aplicam */
 .topo-voltar[hidden],
 .topo-escudo[hidden] { display: none; }

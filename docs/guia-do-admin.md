@@ -2,8 +2,8 @@
 
 Passo a passo de quem lança o racha de quinta-feira no celular.
 
-**Endereço:** `https://viniciusesousa.github.io/racha/admin.html` (não tem link na área pública; salve nos favoritos ou "Adicionar à tela inicial").
-Entre com o seu e-mail e senha de admin. Esqueceu a senha? Toque em "Esqueci a senha" e siga o e-mail.
+**Como entrar:** no app do racha, toque no **cadeado** no canto de cima, à direita, e entre com o seu e-mail e senha. Depois do primeiro login, o cadeado vira o botão **Admin** nesse celular. (Endereço direto: `https://viniciusesousa.github.io/racha/admin.html`.)
+Esqueceu a senha (ou é o seu primeiro acesso)? Na tela de login, toque em "Esqueci a senha" e siga o e-mail para criar a sua.
 
 > Tudo é gravado **na hora**, a cada toque. Não existe botão "salvar o racha" no final.
 

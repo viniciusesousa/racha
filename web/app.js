@@ -1306,6 +1306,25 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+// Atalho para a área do admin (cadeado no topo). Se este celular já tem
+// login guardado (mesma sessão do admin.html) e ele é de administrador, o
+// cadeado vira o botão "Admin". Sem login, não consulta nada no banco.
+// A proteção de verdade continua no banco: o atalho só leva à tela de login.
+async function prepararAtalhoAdmin() {
+  const link = document.getElementById("link-admin");
+  if (!link) return;
+  try {
+    const { data } = await banco.auth.getSession();
+    if (!data.session) return;
+    const { data: ehAdmin, error } = await banco.rpc("eh_admin");
+    if (error || ehAdmin !== true) return;
+    link.classList.add("logado");
+    link.textContent = "Admin";
+    link.setAttribute("aria-label", "Abrir a área do admin");
+  } catch { /* sem internet: fica o cadeado, que leva ao login */ }
+}
+
 // Redesenha sempre que o endereço (#...) mudar, e na primeira abertura.
 window.addEventListener("hashchange", () => { navegouNoApp = true; desenharTela(); });
 desenharTela();
+prepararAtalhoAdmin();
