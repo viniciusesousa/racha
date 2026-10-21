@@ -174,7 +174,7 @@ window.SecaoJogadores = (() => {
         <div class="foto-atual">
           ${avatar(j, "avatar-gigante")}
           <span class="legenda">${j.foto_url && j.foto_consentimento_em
-            ? `Uso autorizado em ${dataBR(j.foto_consentimento_em)}.` : "Sem foto: aparecem as iniciais."}</span>
+            ? `Uso autorizado em ${new Date(j.foto_consentimento_em).toLocaleDateString("pt-BR")}.` : "Sem foto: aparecem as iniciais."}</span>
         </div>
         <label class="campo"><span>${j.foto_url ? "Trocar a foto" : "Escolher foto"}</span>
           <input type="file" id="foto-arquivo" accept="image/*"></label>
@@ -278,9 +278,13 @@ window.SecaoJogadores = (() => {
         if (envio.error) return envio;
         const url = banco.storage.from(BUCKET).getPublicUrl(caminho).data.publicUrl;
         // Foto e consentimento gravados juntos (o banco exige os dois).
-        return banco.from("jogadores")
+        const atualizado = await banco.from("jogadores")
           .update({ foto_url: url, foto_consentimento_em: new Date().toISOString() })
           .eq("id", j.id).select("id").single();
+        // Se o cadastro não gravou, apaga o arquivo recém-enviado (assim o
+        // "Tentar de novo" envia de novo sem dar "arquivo já existe").
+        if (atualizado.error) await banco.storage.from(BUCKET).remove([caminho]);
+        return atualizado;
       },
       async () => {
         // A foto anterior não é mais usada: apaga o arquivo antigo.
