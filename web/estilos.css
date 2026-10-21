@@ -1360,6 +1360,8 @@ button.aba {
 .resumo-formas { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 4px; }
 .resumo-formas li { display: flex; justify-content: space-between; padding: 4px 2px; border-bottom: 1px dashed var(--borda); }
 .resumo-devendo { margin: 0; font-size: 0.9rem; }
+.resumo-devendo + .resumo-devendo { margin-top: 10px; }
+.resumo-devendo small { color: var(--texto-suave, inherit); font-size: 0.8rem; }
 
 .fin-linha { display: grid; gap: 8px; padding: 12px; }
 .fin-topo { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

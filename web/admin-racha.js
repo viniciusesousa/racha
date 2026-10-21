@@ -449,10 +449,22 @@ window.SecaoRacha = (() => {
     const porForma = {};
     for (const pg of fin.pagamentos) porForma[pg.forma] = (porForma[pg.forma] || 0) + pg.valor;
     const totalRecebido = Object.values(porForma).reduce((a, v) => a + v, 0);
+    // "Não pagaram hoje": só o racha do dia. Falta = cobrança do dia − pago
+    // na data do racha (limitado ao saldo: quem tinha crédito já está coberto).
+    const pagoHoje = new Map();
+    for (const pg of fin.pagamentos) pagoHoje.set(pg.jogador_id, (pagoHoje.get(pg.jogador_id) || 0) + pg.valor);
+    const naoPagaram = [...fin.cobrancas.entries()]
+      .map(([id, valor]) => ({ id, nome: nomeDe(id),
+        falta: Math.min(valor - (pagoHoje.get(id) || 0), fin.saldos.get(id) ?? 0) }))
+      .filter((d) => d.falta > 0)
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    // "Dívida acumulada": total devido (este e rachas anteriores) por quem tem cobrança hoje.
     const devendo = [...fin.cobrancas.keys()]
       .filter((id) => (fin.saldos.get(id) ?? 0) > 0)
       .map((id) => ({ id, nome: nomeDe(id), saldo: fin.saldos.get(id) }))
       .sort((a, b) => b.saldo - a.saldo || a.nome.localeCompare(b.nome, "pt-BR"));
+    const listaNomes = (itens, valor) => itens.length
+      ? itens.map((d) => `${esc(d.nome)} (${reais(valor(d))})`).join(", ") : "ninguém 🎉";
     const resumo = `
       <div class="cartao resumo-dia">
         <h3 class="secao-titulo" style="margin-top:0">Resumo do dia</h3>
@@ -464,8 +476,10 @@ window.SecaoRacha = (() => {
           ${[...FORMAS, ["nao_informado", "Não informado"]].filter(([f]) => f !== "nao_informado" || porForma[f])
             .map(([f, nome]) => `<li><span>${nome}</span><b>${reais(porForma[f] || 0)}</b></li>`).join("")}
         </ul>
-        <p class="resumo-devendo"><b>Ficaram devendo (${devendo.length}):</b>
-          ${devendo.length ? devendo.map((d) => `${esc(d.nome)} (${reais(d.saldo)})`).join(", ") : "ninguém 🎉"}</p>
+        <p class="resumo-devendo"><b>Não pagaram hoje (${naoPagaram.length}):</b>
+          ${listaNomes(naoPagaram, (d) => d.falta)}<br><small>só o racha de hoje</small></p>
+        <p class="resumo-devendo"><b>Dívida acumulada (${devendo.length}):</b>
+          ${listaNomes(devendo, (d) => d.saldo)}<br><small>total devido, somando rachas anteriores</small></p>
       </div>`;
 
     // --- Lista de quem tem cobrança no dia
